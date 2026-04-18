@@ -7,7 +7,7 @@ x-voice-common: &voice-common
     TTS_ENABLED_MODES: ${TTS_ENABLED_MODES:-custom_voice,voice_design}
     TTS_VRAM_POLICY: ${TTS_VRAM_POLICY:-keep_loaded}
     TTS_ATTENTION_IMPL: ${TTS_ATTENTION_IMPL:-sdpa}
-    STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-int8_float16}
+    STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-auto}
     PRELOAD_AT_STARTUP: ${PRELOAD_AT_STARTUP:-true}
     STT_DEVICE: ${STT_DEVICE:-auto}
     TTS_DEVICE: ${TTS_DEVICE:-cuda}

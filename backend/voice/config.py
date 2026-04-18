@@ -41,13 +41,14 @@ class Settings(BaseSettings):
     )
     stt_model: str = "h2oai/faster-whisper-large-v3-turbo"
     # CTranslate2 compute_type passed to WhisperModel at load time.
-    # int8_float16 quantises weights to int8 while keeping activations in
-    # float16 — roughly half the weight-bandwidth of plain float16, with
-    # WER degradation typically under 0.5% on clean speech. Default here
-    # because Strix Halo and similar bandwidth-limited GPUs benefit
-    # significantly. Fall back to "float16" if int8 misbehaves on a
-    # particular ROCm driver version.
-    stt_compute_type: STTComputeType = "int8_float16"
+    # "auto" lets CT2 pick the best supported type for the detected device:
+    # int8_float16 on CUDA with Tensor cores, int8 (or int8_float32 without
+    # AVX-VNNI) on CPU. CPUs do not support int8_float16 at all — float16
+    # computation is a GPU-only capability — so a hard-coded int8_float16
+    # default fails on ROCm hosts that fall back to CPU for STT. Override
+    # explicitly if you need to A/B a specific precision, e.g.
+    # STT_COMPUTE_TYPE=float16 on CUDA or =int8 on CPU.
+    stt_compute_type: STTComputeType = "auto"
     stt_max_audio_bytes: int = 25 * 1024 * 1024
     tts_custom_voice_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     tts_voice_design_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
