@@ -485,7 +485,7 @@ Create `backend/voice/config.py`:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -524,7 +524,7 @@ class Settings(BaseSettings):
 
     @field_validator("tts_enabled_modes", mode="before")
     @classmethod
-    def _parse_enabled_modes(cls, value):
+    def _parse_enabled_modes(cls, value: Any) -> tuple[str, ...]:
         if value is None or value == "":
             raise ValueError("tts_enabled_modes must not be empty")
         if isinstance(value, str):
