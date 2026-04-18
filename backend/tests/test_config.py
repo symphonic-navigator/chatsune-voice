@@ -83,3 +83,33 @@ def test_model_cache_dir_env_roundtrip(monkeypatch, tmp_path):
 
     s = Settings(_env_file=None)
     assert str(s.model_cache_dir) == str(tmp_path)
+
+
+def test_enabled_modes_env_roundtrip_comma_separated(monkeypatch):
+    """The env-var path must reach the comma-split validator untouched.
+
+    pydantic-settings JSON-decodes complex-typed env values by default, which
+    would choke on `custom_voice,voice_design` (invalid JSON). The NoDecode
+    annotation suppresses that, letting our validator split commas instead.
+    """
+    monkeypatch.setenv("TTS_ENABLED_MODES", "custom_voice,voice_design")
+    from voice.config import Settings
+
+    s = Settings(_env_file=None)
+    assert set(s.tts_enabled_modes) == {"custom_voice", "voice_design"}
+
+
+def test_enabled_modes_env_single_value(monkeypatch):
+    monkeypatch.setenv("TTS_ENABLED_MODES", "custom_voice")
+    from voice.config import Settings
+
+    s = Settings(_env_file=None)
+    assert s.tts_enabled_modes == ("custom_voice",)
+
+
+def test_enabled_modes_env_rejects_invalid_mode(monkeypatch):
+    monkeypatch.setenv("TTS_ENABLED_MODES", "custom_voice,bogus")
+    from voice.config import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)

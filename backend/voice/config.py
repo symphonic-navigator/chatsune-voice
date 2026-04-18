@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 VRAMPolicy = Literal["keep_loaded", "swap"]
 AttentionImpl = Literal["sdpa", "flash_attention_2", "eager"]
@@ -32,7 +32,13 @@ class Settings(BaseSettings):
     stt_max_audio_bytes: int = 25 * 1024 * 1024
     tts_custom_voice_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     tts_voice_design_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
-    tts_enabled_modes: tuple[TTSMode, ...] = ("custom_voice", "voice_design")
+    # NoDecode suppresses pydantic-settings' default JSON-decoding of complex
+    # types when the value comes from the environment. We want the raw string
+    # (e.g. "custom_voice,voice_design") to reach _parse_enabled_modes intact
+    # so it can split on commas rather than choke on invalid JSON.
+    tts_enabled_modes: Annotated[
+        tuple[TTSMode, ...], NoDecode
+    ] = ("custom_voice", "voice_design")
     tts_vram_policy: VRAMPolicy = "keep_loaded"
     tts_attention_impl: AttentionImpl = "sdpa"
     preload_at_startup: bool = True
