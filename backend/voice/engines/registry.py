@@ -48,13 +48,30 @@ class TTSModelRegistry:
     def loaded_modes(self) -> tuple[TTSMode, ...]:
         return tuple(self._loaded.keys())
 
-    async def preload(self) -> None:
-        """Load enabled models at start-up. No-op under 'swap' policy."""
+    def preload(self) -> None:
+        """Load enabled models at start-up. No-op under 'swap' policy.
+
+        Synchronous by design: preload runs during application bootstrap, and
+        that bootstrap path may already be inside a running asyncio loop (for
+        instance, uvicorn imports `voice.main:app` via __getattr__ while its
+        own serve() loop is active — an `asyncio.run` there would blow up
+        with "cannot be called from a running event loop"). At startup there
+        is nothing to block anyway, so a plain synchronous loader call is
+        both safer and simpler.
+        """
         if self._policy == "swap":
             log.info("tts_registry_preload_skipped", reason="swap_policy")
             return
         for mode in self._enabled:
-            await self._load_locked(mode)
+            self._load_sync(mode)
+
+    def _load_sync(self, mode: TTSMode) -> None:
+        try:
+            model = self._loader(mode)
+        except Exception as exc:
+            raise ModelLoadError(mode, exc) from exc
+        self._loaded[mode] = model
+        log.info("tts_model_loaded", mode=mode)
 
     @asynccontextmanager
     async def acquire(self, mode: str) -> AsyncIterator[TTSModel]:

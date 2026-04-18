@@ -62,7 +62,7 @@ async def test_preload_success(tmp_path):
         preload_at_startup=True,
     )
     registry = build_registry(s, tts_loader=loader)
-    await registry.preload()
+    registry.preload()
     assert "custom_voice" in registry.loaded_modes()
 
 
@@ -83,4 +83,4 @@ async def test_preload_failure_raises_model_load_error():
     )
     registry = build_registry(s, tts_loader=loader)
     with pytest.raises(ModelLoadError):
-        await registry.preload()
+        registry.preload()

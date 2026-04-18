@@ -81,14 +81,16 @@ def _default_stt(settings: Settings):
     return engine
 
 
-async def _async_bootstrap(settings: Settings):
+def _bootstrap(settings: Settings):
+    """Synchronous bootstrap — safe to call from inside a running asyncio loop
+    (e.g. uvicorn's importer when it resolves `voice.main:app`)."""
     from voice.api.app import build_app
 
     stt = _default_stt(settings) if settings.preload_at_startup else _LazySTT(settings)
 
     registry = build_registry(settings, tts_loader=_default_tts_loader(settings))
     if settings.preload_at_startup:
-        await registry.preload()
+        registry.preload()
 
     app = build_app(stt=stt, registry=registry, settings=settings)
     return app, registry
@@ -120,7 +122,7 @@ def _lazy_app():
     settings = Settings()
     configure_logging(settings.log_level)
     apply_hf_home(settings.model_cache_dir)
-    app, _registry = asyncio.run(_async_bootstrap(settings))
+    app, _registry = _bootstrap(settings)
     return app
 
 
@@ -139,7 +141,7 @@ def run() -> None:
     apply_hf_home(settings.model_cache_dir)
 
     try:
-        app, registry = asyncio.run(_async_bootstrap(settings))
+        app, registry = _bootstrap(settings)
     except Exception as exc:
         log.error("startup_failed", error_type=type(exc).__name__, message=str(exc))
         sys.exit(2)

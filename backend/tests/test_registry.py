@@ -29,7 +29,7 @@ async def test_keep_loaded_preload_loads_all_enabled():
         policy="keep_loaded",
         loader=_loader_factory(counts),
     )
-    await registry.preload()
+    registry.preload()
     assert counts == {"custom_voice": 1, "voice_design": 1}
 
 
@@ -44,7 +44,7 @@ async def test_keep_loaded_per_mode_lock_serialises_same_mode():
         policy="keep_loaded",
         loader=_loader_factory(counts),
     )
-    await registry.preload()
+    registry.preload()
 
     async def use(tag: str) -> None:
         async with registry.acquire("custom_voice") as _model:
@@ -71,7 +71,7 @@ async def test_keep_loaded_parallel_across_modes():
         policy="keep_loaded",
         loader=_loader_factory(counts),
     )
-    await registry.preload()
+    registry.preload()
 
     async def use(mode: str, tag: str) -> None:
         async with registry.acquire(mode) as _model:
@@ -100,7 +100,7 @@ async def test_swap_evicts_and_reloads_on_mode_switch():
         loader=_loader_factory(counts),
         on_evict=lambda mode: evictions.append(mode),
     )
-    await registry.preload()   # no-op under swap
+    registry.preload()   # no-op under swap
     assert counts == {}
 
     async with registry.acquire("custom_voice"):
