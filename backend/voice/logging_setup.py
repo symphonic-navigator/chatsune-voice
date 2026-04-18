@@ -31,8 +31,11 @@ def configure_logging(level: str = "info") -> None:
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(stdlib_level),
-        logger_factory=structlog.PrintLoggerFactory(sys.stdout),
-        cache_logger_on_first_use=True,
+        # Passing no file lets each PrintLogger instance resolve sys.stdout
+        # at construction time, which plays nicely with pytest's capsys and
+        # any other harness that swaps sys.stdout in/out dynamically.
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=False,
     )
 
     # Set up stdlib logging to also output through structlog
