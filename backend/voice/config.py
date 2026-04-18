@@ -12,6 +12,17 @@ VRAMPolicy = Literal["keep_loaded", "swap"]
 AttentionImpl = Literal["sdpa", "flash_attention_2", "eager"]
 LogLevel = Literal["debug", "info", "warn", "error"]
 TTSMode = Literal["custom_voice", "voice_design"]
+STTComputeType = Literal[
+    "auto",
+    "int8",
+    "int8_float16",
+    "int8_bfloat16",
+    "int8_float32",
+    "int16",
+    "float16",
+    "bfloat16",
+    "float32",
+]
 
 
 class Settings(BaseSettings):
@@ -29,6 +40,14 @@ class Settings(BaseSettings):
         alias="CHATSUNE_VOICE_MODEL_CACHE_DIR",
     )
     stt_model: str = "h2oai/faster-whisper-large-v3-turbo"
+    # CTranslate2 compute_type passed to WhisperModel at load time.
+    # int8_float16 quantises weights to int8 while keeping activations in
+    # float16 — roughly half the weight-bandwidth of plain float16, with
+    # WER degradation typically under 0.5% on clean speech. Default here
+    # because Strix Halo and similar bandwidth-limited GPUs benefit
+    # significantly. Fall back to "float16" if int8 misbehaves on a
+    # particular ROCm driver version.
+    stt_compute_type: STTComputeType = "int8_float16"
     stt_max_audio_bytes: int = 25 * 1024 * 1024
     tts_custom_voice_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     tts_voice_design_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"

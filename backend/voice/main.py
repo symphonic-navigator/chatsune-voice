@@ -69,6 +69,7 @@ def _default_stt(settings: Settings):
     backend = load_faster_whisper(
         settings.stt_model,
         device=settings.device,
+        compute_type=settings.stt_compute_type,
         download_root=None,
     )
     engine = WhisperEngine(model_name=settings.stt_model, model=backend)
@@ -76,6 +77,7 @@ def _default_stt(settings: Settings):
     get_logger(__name__).info(
         "stt_model_loaded",
         model=settings.stt_model,
+        compute_type=settings.stt_compute_type,
         load_ms=int((time.monotonic() - t0) * 1000),
     )
     return engine

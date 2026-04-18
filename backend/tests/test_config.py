@@ -12,6 +12,7 @@ def test_defaults(monkeypatch):
 
     s = Settings(_env_file=None)
     assert s.stt_model == "h2oai/faster-whisper-large-v3-turbo"
+    assert s.stt_compute_type == "int8_float16"
     assert s.tts_custom_voice_model == "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     assert s.tts_voice_design_model == "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
     assert s.tts_enabled_modes == ("custom_voice", "voice_design")
@@ -113,3 +114,16 @@ def test_enabled_modes_env_rejects_invalid_mode(monkeypatch):
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_stt_compute_type_enum():
+    from voice.config import Settings
+
+    for val in (
+        "auto", "int8", "int8_float16", "int8_bfloat16", "int8_float32",
+        "int16", "float16", "bfloat16", "float32",
+    ):
+        assert Settings(_env_file=None, stt_compute_type=val).stt_compute_type == val
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, stt_compute_type="int4")
