@@ -857,11 +857,21 @@ def make_streaming_wav_header(*, sample_rate: int, channels: int = 1) -> bytes:
 
 
 def float32_to_pcm16(samples: np.ndarray) -> bytes:
-    """Convert a float32 numpy array in [-1, 1] to little-endian PCM16 bytes."""
+    """Convert a float32 numpy array in [-1, 1] to little-endian PCM16 bytes.
+
+    int16 has an asymmetric range ([-32768, +32767]) so we scale negative and
+    positive samples separately: negatives by 32768 and positives by 32767.
+    This keeps full-scale silence-to-peak symmetric from the listener's point
+    of view and makes -1.0 round-trip to INT16_MIN, matching the test.
+    """
     if samples.dtype != np.float32:
         raise TypeError(f"expected float32, got {samples.dtype}")
     clipped = np.clip(samples, -1.0, 1.0)
-    scaled = np.round(clipped * 32767.0).astype(np.int16)
+    scaled = np.where(
+        clipped < 0,
+        np.round(clipped * 32768.0),
+        np.round(clipped * 32767.0),
+    ).astype(np.int16)
     return scaled.tobytes()
 ```
 
