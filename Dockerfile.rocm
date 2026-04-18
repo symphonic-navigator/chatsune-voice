@@ -1,30 +1,48 @@
 # syntax=docker/dockerfile:1.7
-# The rocm/pytorch repository does not publish ROCm 6.x + PyTorch 2.5.x tags.
-# This tag pairs ROCm 7.2.2 on Ubuntu 24.04 with Python 3.12 and PyTorch 2.7.1,
-# which satisfies our pyproject `torch>=2.5,<3` constraint and supports RDNA
-# 3.5 iGPUs (Strix Halo, gfx1151) natively.
+# rocm/pytorch never published a ROCm 6.x + PyTorch 2.5.x combination. This
+# tag pairs ROCm 7.2.2 on Ubuntu 24.04 with Python 3.12 and PyTorch 2.7.1,
+# satisfies our pyproject `torch>=2.5,<3` constraint, and supports RDNA 3.5
+# iGPUs (Strix Halo, gfx1151) natively.
 FROM rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    UV_SYSTEM_PYTHON=1
 
+# ffmpeg for audio decoding; sox because qwen-tts invokes it internally for
+# some loader paths and warns verbosely if it is missing.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg \
+    && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg sox \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
+# Install our pinned dependencies into the base image's Python environment
+# directly — NOT into a uv-managed venv. The base image ships a ROCm-built
+# torch that MUST be preserved: PyPI's torch wheel is CUDA-only and would
+# fail at runtime with "Found no NVIDIA driver on your system" on an AMD
+# host. By exporting uv.lock to a pip requirements file and filtering out
+# torch, we get reproducible pinning of every other dependency while
+# leaving the base torch untouched.
 COPY backend/pyproject.toml backend/uv.lock ./
-# The base image already ships a ROCm-built torch; do not replace it.
-RUN uv sync --frozen --no-dev --no-install-project --no-install-package torch
+RUN uv export \
+        --frozen --no-dev --no-hashes \
+        --no-emit-project --no-emit-package torch \
+        -o /tmp/requirements.txt \
+    && uv pip install --system -r /tmp/requirements.txt
 
+# Install the project itself so `voice` is importable as a package. No deps
+# resolved here (we already installed everything above).
 COPY backend/ ./
-
-RUN uv sync --frozen --no-dev --no-install-package torch
+RUN uv pip install --system --no-deps .
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "voice.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Call uvicorn directly. Using `uv run` would try to resolve and sync a
+# virtual environment at startup against pyproject.toml, re-downloading
+# torch from PyPI (the CUDA wheel) and undoing the ROCm torch preservation
+# above. The base image's python is already on PATH.
+CMD ["python", "-m", "uvicorn", "voice.main:app", "--host", "0.0.0.0", "--port", "8000"]
