@@ -14,7 +14,7 @@ Voice homelab backend for [chatsune](https://github.com/symphonic-navigator). Ru
 - GNU/Linux host with Docker and Docker Compose.
 - One of:
   - **NVIDIA GPU** with `nvidia-container-toolkit` installed (CUDA 12.4+), or
-  - **AMD GPU** supported by ROCm 6.2+ (including the Strix Halo iGPU).
+  - **AMD GPU** supported by ROCm 7.2+ (including RDNA 3.5 iGPUs such as Strix Halo).
 - At least ~8 GB VRAM for `TTS_VRAM_POLICY=swap`, ~24 GB for `keep_loaded` with both TTS modes enabled.
 - ~5 GB disk for the model cache.
 

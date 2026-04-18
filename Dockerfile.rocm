@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1.7
-FROM rocm/pytorch:rocm6.2.1_ubuntu22.04_py3.12_pytorch_2.5.1
+# The rocm/pytorch repository does not publish ROCm 6.x + PyTorch 2.5.x tags.
+# This tag pairs ROCm 7.2.2 on Ubuntu 24.04 with Python 3.12 and PyTorch 2.7.1,
+# which satisfies our pyproject `torch>=2.5,<3` constraint and supports RDNA
+# 3.5 iGPUs (Strix Halo, gfx1151) natively.
+FROM rocm/pytorch:rocm7.2.2_ubuntu24.04_py3.12_pytorch_release_2.7.1
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
