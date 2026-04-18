@@ -655,15 +655,18 @@ _LEVELS = {
 
 
 def configure_logging(level: str = "info") -> None:
-    """Configure structlog + stdlib logging to emit JSON lines to stdout."""
-    stdlib_level = _LEVELS.get(level, logging.INFO)
+    """Configure structlog + stdlib logging to emit JSON lines to stdout.
 
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=stdlib_level,
-        force=True,
-    )
+    Two paths are wired up:
+    1. `structlog.get_logger(...)` → PrintLoggerFactory → stdout (JSON).
+    2. `logging.getLogger(...)` → StreamHandler with structlog ProcessorFormatter
+       → stdout (also JSON).
+
+    The second bridge is necessary because `logging.basicConfig` alone would emit
+    stdlib log records as plain text; the ProcessorFormatter hands them through
+    the same structlog rendering chain so every log line on stdout is JSON.
+    """
+    stdlib_level = _LEVELS.get(level, logging.INFO)
 
     structlog.configure(
         processors=[
@@ -678,6 +681,25 @@ def configure_logging(level: str = "info") -> None:
         logger_factory=structlog.PrintLoggerFactory(sys.stdout),
         cache_logger_on_first_use=True,
     )
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(stdlib_level)
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(stdlib_level)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(),
+            foreign_pre_chain=[
+                structlog.contextvars.merge_contextvars,
+                structlog.stdlib.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso", utc=True),
+            ],
+        )
+    )
+    root_logger.addHandler(handler)
 
 
 def get_logger(name: str | None = None) -> Any:
