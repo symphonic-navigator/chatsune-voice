@@ -19,7 +19,8 @@ def test_defaults(monkeypatch):
     assert s.tts_vram_policy == "keep_loaded"
     assert s.tts_attention_impl == "sdpa"
     assert s.preload_at_startup is True
-    assert s.device == "cuda"
+    assert s.stt_device == "auto"
+    assert s.tts_device == "cuda"
     assert s.log_level == "info"
     assert s.app_port == 8000
     assert s.stt_max_audio_bytes == 25 * 1024 * 1024

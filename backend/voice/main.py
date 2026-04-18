@@ -46,14 +46,14 @@ def _default_tts_loader(settings: Settings) -> Callable[[str], object]:
         if mode == "custom_voice":
             backend = load_qwen_tts(
                 settings.tts_custom_voice_model,
-                device=settings.device,
+                device=settings.tts_device,
                 attention_impl=settings.tts_attention_impl,
             )
             return QwenCustomVoiceModel(backend=backend)
         if mode == "voice_design":
             backend = load_qwen_tts(
                 settings.tts_voice_design_model,
-                device=settings.device,
+                device=settings.tts_device,
                 attention_impl=settings.tts_attention_impl,
             )
             return QwenVoiceDesignModel(backend=backend)
@@ -68,7 +68,7 @@ def _default_stt(settings: Settings):
     t0 = time.monotonic()
     backend = load_faster_whisper(
         settings.stt_model,
-        device=settings.device,
+        device=settings.stt_device,
         compute_type=settings.stt_compute_type,
         download_root=None,
     )
@@ -77,6 +77,7 @@ def _default_stt(settings: Settings):
     get_logger(__name__).info(
         "stt_model_loaded",
         model=settings.stt_model,
+        device=settings.stt_device,
         compute_type=settings.stt_compute_type,
         load_ms=int((time.monotonic() - t0) * 1000),
     )
@@ -134,7 +135,8 @@ def run() -> None:
     log = get_logger(__name__)
     log.info(
         "app_starting",
-        device=settings.device,
+        stt_device=settings.stt_device,
+        tts_device=settings.tts_device,
         tts_vram_policy=settings.tts_vram_policy,
         tts_enabled_modes=list(settings.tts_enabled_modes),
         preload_at_startup=settings.preload_at_startup,

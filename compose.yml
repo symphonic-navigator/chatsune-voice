@@ -9,10 +9,15 @@ x-voice-common: &voice-common
     TTS_ATTENTION_IMPL: ${TTS_ATTENTION_IMPL:-sdpa}
     STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-int8_float16}
     PRELOAD_AT_STARTUP: ${PRELOAD_AT_STARTUP:-true}
-    DEVICE: ${DEVICE:-cuda}
+    STT_DEVICE: ${STT_DEVICE:-auto}
+    TTS_DEVICE: ${TTS_DEVICE:-cuda}
     LOG_LEVEL: ${LOG_LEVEL:-info}
     STT_MAX_AUDIO_BYTES: ${STT_MAX_AUDIO_BYTES:-26214400}
     APP_PORT: ${APP_PORT:-8000}
+    # Hugging Face token — forwarded to both huggingface_hub (for
+    # downloads) and the model libraries. Empty by default; the public
+    # default repos do not require it.
+    HF_TOKEN: ${HF_TOKEN:-}
   volumes:
     - ${MODEL_CACHE_DIR:-./models}:/models
   ports:

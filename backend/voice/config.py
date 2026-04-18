@@ -61,7 +61,20 @@ class Settings(BaseSettings):
     tts_vram_policy: VRAMPolicy = "keep_loaded"
     tts_attention_impl: AttentionImpl = "sdpa"
     preload_at_startup: bool = True
-    device: str = "cuda"
+    # Device strings are split between STT and TTS because the two engines
+    # reach the GPU through different libraries.
+    #
+    # stt_device → CTranslate2 (via faster-whisper). CT2's PyPI wheel is
+    # CUDA-only: it has no ROCm build, so on an AMD host "cuda" errors out
+    # with "CUDA driver version is insufficient". "auto" picks CUDA when a
+    # NVIDIA driver is present and falls back to CPU otherwise — that is
+    # the right default on ROCm hosts because Strix Halo's 16-core Zen 5
+    # runs int8 Whisper Turbo near real-time on CPU.
+    #
+    # tts_device → PyTorch (via qwen-tts). ROCm-PyTorch exposes the CUDA
+    # API via HIP, so "cuda" is correct on both NVIDIA and ROCm hosts.
+    stt_device: str = "auto"
+    tts_device: str = "cuda"
     log_level: LogLevel = "info"
     app_port: int = 8000
 
