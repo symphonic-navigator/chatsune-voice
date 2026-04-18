@@ -15,26 +15,23 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg sox \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a venv that inherits the base image's site-packages. The base ships
-# a ROCm-built torch AND torchaudio (the CUDA wheels on PyPI would clobber
-# both if we ever installed them). With --system-site-packages the venv's
-# pip resolver sees torch 2.7.1+rocm7.2 and torchaudio already installed and
-# treats any downstream `torch>=x` / `torchaudio>=y` constraint as satisfied
-# without downloading replacements from PyPI.
-RUN python3 -m venv --system-site-packages /opt/voice-venv
-ENV PATH="/opt/voice-venv/bin:${PATH}" \
-    VIRTUAL_ENV="/opt/voice-venv"
+# The rocm/pytorch base image installs its Python and the ROCm-built torch +
+# torchaudio into its own virtual environment at /opt/venv. We install OUR
+# dependencies into that same venv so pip sees torch 2.7.1+rocm7.2.2 already
+# installed (satisfying our `torch>=2.5,<3` constraint in PEP 440) and does
+# not replace it with a PyPI CUDA wheel. Creating a second venv here would
+# not work — "--system-site-packages" only inherits /usr/lib/python*, not
+# another venv's site-packages, so a nested venv would still be torch-less.
+ENV PATH="/opt/venv/bin:${PATH}" \
+    VIRTUAL_ENV="/opt/venv"
 
 WORKDIR /app
 COPY backend/ ./
 
-# Install the project with all direct dependencies. pip picks up the base
-# image's torch / torchaudio as already-satisfied requirements and pulls the
-# rest from PyPI in the usual way. We do NOT use uv.lock here because the
-# lock was resolved on a CUDA-capable host and pins torch's NVIDIA-specific
-# transitive deps (cuda-toolkit, nvidia-cublas, …). The CUDA image keeps
-# lockfile reproducibility; the ROCm image trades that for base-image
-# torch preservation.
+# Install the project and its dependencies. pip treats torch and torchaudio
+# as already-satisfied (the base's 2.7.1+rocm7.2.2 matches any torch>=2.5,<3
+# requirement because the local version tag is ignored in version comparison
+# when the public version is in range). Nothing CUDA-flavoured is pulled.
 RUN pip install --no-cache-dir .
 
 EXPOSE 8000
