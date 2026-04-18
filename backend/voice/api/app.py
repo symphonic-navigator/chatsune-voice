@@ -9,12 +9,14 @@ Also installs:
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import Any
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from voice.api import health as health_module
 from voice.api import stt as stt_module
@@ -75,5 +77,10 @@ def build_app(*, stt: Any, registry: Any, settings: Any) -> FastAPI:
             status_code=500,
             content={"error": "internal_server_error"},
         )
+
+    # Static mount must come LAST so API routes take precedence.
+    static_dir = Path(__file__).resolve().parent.parent.parent / "static"
+    if static_dir.is_dir():
+        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
     return app

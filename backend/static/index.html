@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>chatsune-voice — Bastelstube</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>chatsune-voice</h1>
+    <p class="tagline">Bastelstube — local STT + TTS experimentation</p>
+  </header>
+
+  <section id="stt">
+    <h2>Speech-to-Text</h2>
+    <div class="controls">
+      <button id="stt-record">Record</button>
+      <button id="stt-stop" disabled>Stop</button>
+      <input type="file" id="stt-file" accept="audio/*">
+      <label>Language: <select id="stt-language">
+        <option value="">auto</option>
+        <option value="de">de</option>
+        <option value="en">en</option>
+        <option value="fr">fr</option>
+        <option value="it">it</option>
+        <option value="es">es</option>
+      </select></label>
+      <label><input type="checkbox" id="stt-vad" checked> VAD</label>
+    </div>
+    <div class="status" id="stt-status">idle</div>
+    <textarea id="stt-output" rows="6" placeholder="transcript appears here"></textarea>
+    <div class="meta" id="stt-meta"></div>
+  </section>
+
+  <section id="tts">
+    <h2>Text-to-Speech</h2>
+    <div class="mode-tabs">
+      <label><input type="radio" name="tts-mode" value="custom_voice" checked> CustomVoice</label>
+      <label><input type="radio" name="tts-mode" value="voice_design"> VoiceDesign</label>
+    </div>
+
+    <div id="tts-custom-voice" class="tts-panel">
+      <label>Text: <textarea id="cv-text" rows="3"></textarea></label>
+      <label>Language: <select id="cv-language">
+        <option>German</option><option>English</option><option>French</option>
+        <option>Italian</option><option>Spanish</option><option>Portuguese</option>
+        <option>Russian</option><option>Chinese</option><option>Japanese</option>
+        <option>Korean</option><option>Auto</option>
+      </select></label>
+      <label>Speaker: <select id="cv-speaker">
+        <option>Vivian</option><option>Serena</option><option>Uncle_Fu</option>
+        <option>Dylan</option><option>Eric</option>
+        <option>Ryan</option><option>Aiden</option>
+        <option>Ono_Anna</option><option>Sohee</option>
+      </select></label>
+      <label>Instruct (optional): <input type="text" id="cv-instruct"></label>
+      <button id="cv-speak">Speak</button>
+    </div>
+
+    <div id="tts-voice-design" class="tts-panel hidden">
+      <label>Text: <textarea id="vd-text" rows="3"></textarea></label>
+      <label>Language: <select id="vd-language">
+        <option>German</option><option>English</option><option>French</option>
+        <option>Italian</option><option>Spanish</option><option>Portuguese</option>
+        <option>Russian</option><option>Chinese</option><option>Japanese</option>
+        <option>Korean</option><option>Auto</option>
+      </select></label>
+      <label>Voice prompt: <textarea id="vd-voice-prompt" rows="3"
+        placeholder="e.g. warme tiefe Männerstimme mit leichter Rauhigkeit"></textarea></label>
+      <label>Instruct (optional): <input type="text" id="vd-instruct"></label>
+      <button id="vd-speak">Speak</button>
+    </div>
+
+    <audio id="tts-audio" controls></audio>
+    <a id="tts-download" href="#" download="speech.wav" class="hidden">Download WAV</a>
+    <div class="status" id="tts-status">idle</div>
+  </section>
+
+  <section id="round-trip">
+    <h2>Round-trip (record, transcribe, speak back)</h2>
+    <button id="rt-run">Record + transcribe + speak</button>
+    <div class="status" id="rt-status">idle</div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
