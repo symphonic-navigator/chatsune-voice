@@ -29,6 +29,11 @@ services:
     <<: *voice-common
     profiles: [cuda]
     image: ${APP_IMAGE:-ghcr.io/symphonic-navigator/chatsune-voice:cuda-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+      args:
+        INSTALL_FLASH_ATTN: ${INSTALL_FLASH_ATTN:-0}
     runtime: nvidia
     environment:
       <<: *voice-env
@@ -38,6 +43,9 @@ services:
     <<: *voice-common
     profiles: [rocm]
     image: ${APP_IMAGE:-ghcr.io/symphonic-navigator/chatsune-voice:rocm-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.rocm
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri

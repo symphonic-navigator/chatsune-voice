@@ -1,0 +1,177 @@
+name: Docker Build & Push
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [master]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/symphonic-navigator/chatsune-voice
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [cuda, rocm]
+    outputs:
+      cuda_tags: ${{ steps.capture.outputs.cuda_tags }}
+      rocm_tags: ${{ steps.capture.outputs.rocm_tags }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free up runner disk space
+        # Both base images are large (cuda ~6 GB, rocm ~15 GB). The stock
+        # GitHub runner has ~14 GB free after OS and tooling; without this
+        # the rocm build runs out of space during image export.
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: false
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            prefix=${{ matrix.variant }}-,onlatest=true
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.variant }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+
+      - name: Sign the published Docker image
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: echo "$TAGS" | xargs -I {} cosign sign --yes {}@"$DIGEST"
+
+      - name: Capture tags per variant
+        id: capture
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          {
+            echo "${VARIANT}_tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write build manifest
+        if: github.event_name != 'pull_request'
+        env:
+          TRIGGER: ${{ github.event_name }}
+          VARIANT: ${{ matrix.variant }}
+          IMAGE_NAME: ${{ env.IMAGE }}
+        run: |
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          BUILT_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          cat > "build-manifest-${VARIANT}.json" << EOF
+          {
+            "schema": "chatsune-build/v1",
+            "built_at": "${BUILT_AT}",
+            "trigger": "${TRIGGER}",
+            "variant": "${VARIANT}",
+            "artifacts": [
+              {
+                "name": "chatsune-voice",
+                "type": "docker",
+                "version": "${VARIANT}-${SHORT_SHA}",
+                "ref": "${IMAGE_NAME}:${VARIANT}-sha-${SHORT_SHA}"
+              }
+            ]
+          }
+          EOF
+
+      - name: Upload build manifest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-manifest-${{ matrix.variant }}
+          path: build-manifest-${{ matrix.variant }}.json
+          retention-days: 7
+
+  report:
+    name: Build Report
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+
+    steps:
+      - name: Summarise built images
+        env:
+          CUDA_TAGS: ${{ needs.build.outputs.cuda_tags }}
+          ROCM_TAGS: ${{ needs.build.outputs.rocm_tags }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          {
+            echo "## Docker Build Report"
+            echo ""
+            echo "| Variant | Tags |"
+            echo "|---------|------|"
+            if [ -n "$CUDA_TAGS" ]; then
+              FORMATTED="${CUDA_TAGS//$'\n'/<br>}"
+              FORMATTED="${FORMATTED%<br>}"
+              echo "| \`cuda\` | $FORMATTED |"
+            else
+              echo "| \`cuda\` | _(not pushed — PR or failed)_ |"
+            fi
+            if [ -n "$ROCM_TAGS" ]; then
+              FORMATTED="${ROCM_TAGS//$'\n'/<br>}"
+              FORMATTED="${FORMATTED%<br>}"
+              echo "| \`rocm\` | $FORMATTED |"
+            else
+              echo "| \`rocm\` | _(not pushed — PR or failed)_ |"
+            fi
+            echo ""
+            echo "Build job result: \`${BUILD_RESULT}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
