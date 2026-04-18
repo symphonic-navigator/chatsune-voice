@@ -49,9 +49,12 @@ services:
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
-    group_add:
-      - video
-      - render
+    # No explicit group_add: the rocm/pytorch image runs as root and
+    # the /dev/kfd + /dev/dri device grants provide enough access via
+    # the kernel. Adding `video` or `render` groups here fails on hosts
+    # where those groups do not exist (e.g. Arch/CachyOS). Operators
+    # who intentionally build custom non-root images on distros that
+    # do have a `render` group can add the groups back locally.
     environment:
       <<: *voice-env
       HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-11.5.1}
