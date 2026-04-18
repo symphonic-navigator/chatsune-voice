@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1.7
+FROM rocm/pytorch:rocm6.2.1_ubuntu22.04_py3.12_pytorch_2.5.1
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+
+COPY backend/pyproject.toml backend/uv.lock ./
+# The base image already ships a ROCm-built torch; do not replace it.
+RUN uv sync --frozen --no-dev --no-install-project --no-install-package torch
+
+COPY backend/ ./
+
+RUN uv sync --frozen --no-dev --no-install-package torch
+
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "voice.main:app", "--host", "0.0.0.0", "--port", "8000"]
