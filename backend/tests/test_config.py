@@ -11,7 +11,7 @@ def test_defaults(monkeypatch):
     from voice.config import Settings
 
     s = Settings(_env_file=None)
-    assert s.stt_model == "Systran/faster-whisper-large-v3-turbo"
+    assert s.stt_model == "h2oai/faster-whisper-large-v3-turbo"
     assert s.tts_custom_voice_model == "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     assert s.tts_voice_design_model == "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
     assert s.tts_enabled_modes == ("custom_voice", "voice_design")

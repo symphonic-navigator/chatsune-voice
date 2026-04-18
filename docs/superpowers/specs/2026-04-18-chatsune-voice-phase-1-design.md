@@ -34,7 +34,7 @@ The intent of Phase 1 is not to be production-ready. It is to:
 
 | Role | Hugging Face model | Loader | Notes |
 |---|---|---|---|
-| STT | `Systran/faster-whisper-large-v3-turbo` | `faster-whisper` (CTranslate2) | ~1 GB bf16; fast on both GPU and CPU; multilingual; tolerant of strong dialects (Viennese German, Québécois French, southern-London English). |
+| STT | `h2oai/faster-whisper-large-v3-turbo` | `faster-whisper` (CTranslate2) | ~1 GB bf16; fast on both GPU and CPU; multilingual; tolerant of strong dialects (Viennese German, Québécois French, southern-London English). |
 | TTS — CustomVoice | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` | `qwen-tts` (PyPI) | 9 preset speakers; free-text `instruct` field controls prosody/emotion. |
 | TTS — VoiceDesign | `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` | `qwen-tts` (PyPI) | Free-text voice description (`voice_prompt`); optional `instruct` controls prosody. |
 
@@ -129,7 +129,7 @@ All configuration is environment-driven and validated at start-up via `pydantic-
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `CHATSUNE_VOICE_MODEL_CACHE_DIR` | no | `/models` (container) / `./.model-cache` (local) | Single cache directory for all three checkpoints. The app copies this value into the process environment as `HF_HOME` **before** importing `faster_whisper` or `qwen_tts`, which is early enough for the Hugging Face Hub client to pick it up. `prefetch_models.py` performs the same translation. Using an app-scoped name (instead of `HF_HOME` directly) keeps us insulated from future HF env-var renames. |
-| `STT_MODEL` | no | `Systran/faster-whisper-large-v3-turbo` | Hugging Face ID of the STT checkpoint. |
+| `STT_MODEL` | no | `h2oai/faster-whisper-large-v3-turbo` | Hugging Face ID of the STT checkpoint. |
 | `STT_MAX_AUDIO_BYTES` | no | `26214400` (25 MiB) | Hard limit on upload size. |
 | `TTS_CUSTOM_VOICE_MODEL` | no | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` | Hugging Face ID of the CustomVoice checkpoint. |
 | `TTS_VOICE_DESIGN_MODEL` | no | `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` | Hugging Face ID of the VoiceDesign checkpoint. |
@@ -156,7 +156,7 @@ No input. Returns `application/json`:
 {
   "status": "ok",
   "stt": {
-    "model": "Systran/faster-whisper-large-v3-turbo",
+    "model": "h2oai/faster-whisper-large-v3-turbo",
     "loaded": true
   },
   "tts": {

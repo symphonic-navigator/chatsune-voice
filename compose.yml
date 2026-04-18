@@ -1,7 +1,7 @@
 x-voice-common: &voice-common
   environment: &voice-env
     CHATSUNE_VOICE_MODEL_CACHE_DIR: /models
-    STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-large-v3-turbo}
+    STT_MODEL: ${STT_MODEL:-h2oai/faster-whisper-large-v3-turbo}
     TTS_CUSTOM_VOICE_MODEL: ${TTS_CUSTOM_VOICE_MODEL:-Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice}
     TTS_VOICE_DESIGN_MODEL: ${TTS_VOICE_DESIGN_MODEL:-Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign}
     TTS_ENABLED_MODES: ${TTS_ENABLED_MODES:-custom_voice,voice_design}

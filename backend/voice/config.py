@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         default=Path("/models"),
         alias="CHATSUNE_VOICE_MODEL_CACHE_DIR",
     )
-    stt_model: str = "Systran/faster-whisper-large-v3-turbo"
+    stt_model: str = "h2oai/faster-whisper-large-v3-turbo"
     stt_max_audio_bytes: int = 25 * 1024 * 1024
     tts_custom_voice_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     tts_voice_design_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
