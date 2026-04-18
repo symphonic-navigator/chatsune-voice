@@ -244,6 +244,7 @@ class FakeSTTEngine:
     """Deterministic, configurable replacement for WhisperEngine."""
 
     model_name: str = "fake-whisper"
+    loaded: bool = True
     result_text: str = "hello world"
     result_language: str = "en"
     result_language_probability: float = 0.99
@@ -3748,28 +3749,7 @@ async def test_healthz_under_integration(fake_stt):
     assert r.status_code == 200
 ```
 
-Note: `fake_stt` fixture does not have a `loaded` attribute by default. Extend `FakeSTTEngine` in `conftest.py` to add `loaded: bool = True` — edit the dataclass:
-
-Open `backend/tests/conftest.py` and change:
-
-```python
-@dataclass
-class FakeSTTEngine:
-    """Deterministic, configurable replacement for WhisperEngine."""
-
-    model_name: str = "fake-whisper"
-```
-
-to:
-
-```python
-@dataclass
-class FakeSTTEngine:
-    """Deterministic, configurable replacement for WhisperEngine."""
-
-    model_name: str = "fake-whisper"
-    loaded: bool = True
-```
+Note: `fake_stt` already has `loaded: bool = True` (added in Task 2) so no fixture changes are needed for the health endpoint test to work.
 
 - [ ] **Step 6: Run all tests**
 
@@ -3783,7 +3763,7 @@ Expected: everything passes, including the two new smoke tests.
 
 ```bash
 cd /home/chris/workspace/chatsune-voice
-git add backend/static/ backend/voice/api/app.py backend/tests/test_integration_smoke.py backend/tests/conftest.py
+git add backend/static/ backend/voice/api/app.py backend/tests/test_integration_smoke.py
 git commit -m "Add static tinker page and integration smoke test"
 ```
 
