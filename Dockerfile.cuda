@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1.7
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+
+# Dependency layer (cached unless pyproject or lock change)
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Source
+COPY backend/ ./
+
+# Optional flash-attn (enable with --build-arg INSTALL_FLASH_ATTN=1)
+ARG INSTALL_FLASH_ATTN=0
+RUN if [ "$INSTALL_FLASH_ATTN" = "1" ]; then \
+      uv pip install flash-attn --no-build-isolation ; \
+    fi
+
+# Re-sync to install project itself
+RUN uv sync --frozen --no-dev
+
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "voice.main:app", "--host", "0.0.0.0", "--port", "8000"]
