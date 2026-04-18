@@ -37,7 +37,7 @@ def main() -> int:
     for hf_id in ids:
         try:
             _download(hf_id, log)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.error("prefetch_failed", model=hf_id, error_type=type(exc).__name__,
                       message=str(exc))
             return 1

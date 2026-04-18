@@ -84,10 +84,7 @@ def _default_stt(settings: Settings):
 async def _async_bootstrap(settings: Settings):
     from voice.api.app import build_app
 
-    if settings.preload_at_startup:
-        stt = _default_stt(settings)
-    else:
-        stt = _LazySTT(settings)
+    stt = _default_stt(settings) if settings.preload_at_startup else _LazySTT(settings)
 
     registry = build_registry(settings, tts_loader=_default_tts_loader(settings))
     if settings.preload_at_startup:

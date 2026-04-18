@@ -57,8 +57,9 @@ def test_float32_to_pcm16_roundtrip_precision():
 
 
 def test_float32_to_pcm16_rejects_wrong_dtype():
-    from voice.audio import float32_to_pcm16
     import pytest
+
+    from voice.audio import float32_to_pcm16
 
     arr = np.array([0.0, 0.5], dtype=np.float64)
     with pytest.raises(TypeError):

@@ -15,7 +15,7 @@ log = get_logger(__name__)
 @router.post("/transcribe", response_model=TranscribeResponse)
 async def transcribe(
     request: Request,
-    audio: UploadFile = File(...),
+    audio: UploadFile = File(...),  # noqa: B008 — FastAPI idiom for declaring a multipart file field
     language: str | None = Form(default=None),
     vad: bool = Form(default=True),
 ) -> TranscribeResponse | JSONResponse:
@@ -43,7 +43,7 @@ async def transcribe(
     log.info("transcribe_request", audio_bytes=len(payload), language_hint=language_norm)
     try:
         result = await stt.transcribe(payload, language=language_norm, vad=vad)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.error("transcribe_error", error_type=type(exc).__name__, message=str(exc))
         return JSONResponse(
             status_code=500,

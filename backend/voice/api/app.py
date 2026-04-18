@@ -52,10 +52,7 @@ def build_app(*, stt: Any, registry: Any, settings: Any) -> FastAPI:
         # When detail is already a dict (e.g. {"error": "...", "mode": "..."}),
         # promote it to the top level so clients can read `response.json()["error"]`
         # directly rather than `response.json()["detail"]["error"]`.
-        if isinstance(exc.detail, dict):
-            content = exc.detail
-        else:
-            content = {"error": str(exc.detail)}
+        content = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
         return JSONResponse(status_code=exc.status_code, content=content)
 
     @app.exception_handler(RequestValidationError)

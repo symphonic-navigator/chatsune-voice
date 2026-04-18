@@ -8,8 +8,8 @@ from contextlib import asynccontextmanager
 from typing import Literal
 
 from voice.engines.protocol import (
-    ModelLoadError,
     ModeDisabledError,
+    ModelLoadError,
     TTSMode,
     TTSModel,
 )
@@ -76,14 +76,14 @@ class TTSModelRegistry:
         for mode, model in list(self._loaded.items()):
             try:
                 await model.aclose()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("tts_model_close_failed", mode=mode, error=repr(exc))
         self._loaded.clear()
 
     async def _load_locked(self, mode: TTSMode) -> None:
         try:
             model = await asyncio.to_thread(self._loader, mode)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise ModelLoadError(mode, exc) from exc
         self._loaded[mode] = model
         log.info("tts_model_loaded", mode=mode)
@@ -92,7 +92,7 @@ class TTSModelRegistry:
         for mode, model in list(self._loaded.items()):
             try:
                 await model.aclose()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("tts_model_close_failed", mode=mode, error=repr(exc))
             if self._on_evict is not None:
                 self._on_evict(mode)

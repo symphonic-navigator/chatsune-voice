@@ -77,7 +77,7 @@ async def speak(request: Request, payload: SpeakRequest) -> StreamingResponse:
                         )
                     total_samples += len(chunk)
                     yield float32_to_pcm16(chunk)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.error(
                 "speak_error",
                 mode=payload.mode,

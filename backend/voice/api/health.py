@@ -22,9 +22,8 @@ async def healthz(request: Request, response: Response) -> HealthResponse:
     degraded = False
     if not stt_loaded:
         degraded = True
-    if policy == "keep_loaded":
-        if set(enabled_modes) - set(loaded_modes):
-            degraded = True
+    if policy == "keep_loaded" and set(enabled_modes) - set(loaded_modes):
+        degraded = True
 
     if degraded:
         response.status_code = 503

@@ -6,7 +6,7 @@ import struct
 
 import numpy as np
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from tests.conftest import FakeTTSModel
 
