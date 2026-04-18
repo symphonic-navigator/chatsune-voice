@@ -94,3 +94,24 @@ async def test_healthz_ok_under_swap_even_if_no_models_loaded():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/healthz")
     assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_request_id_header_echoed_and_generated():
+    from voice.api.app import build_app
+
+    class _Reg:
+        enabled_modes = ()
+        policy = "keep_loaded"
+        def loaded_modes(self):
+            return ()
+
+    app = build_app(stt=_StubSTT(), registry=_Reg(), settings=None)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r1 = await client.get("/healthz")
+        assert "x-request-id" in r1.headers
+        assert len(r1.headers["x-request-id"]) > 0
+
+        r2 = await client.get("/healthz", headers={"x-request-id": "test-123"})
+        assert r2.headers["x-request-id"] == "test-123"
