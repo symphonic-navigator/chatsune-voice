@@ -1,0 +1,49 @@
+x-voice-common: &voice-common
+  environment: &voice-env
+    CHATSUNE_VOICE_MODEL_CACHE_DIR: /models
+    STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-large-v3-turbo}
+    TTS_CUSTOM_VOICE_MODEL: ${TTS_CUSTOM_VOICE_MODEL:-Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice}
+    TTS_VOICE_DESIGN_MODEL: ${TTS_VOICE_DESIGN_MODEL:-Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign}
+    TTS_ENABLED_MODES: ${TTS_ENABLED_MODES:-custom_voice,voice_design}
+    TTS_VRAM_POLICY: ${TTS_VRAM_POLICY:-keep_loaded}
+    TTS_ATTENTION_IMPL: ${TTS_ATTENTION_IMPL:-sdpa}
+    PRELOAD_AT_STARTUP: ${PRELOAD_AT_STARTUP:-true}
+    DEVICE: ${DEVICE:-cuda}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    STT_MAX_AUDIO_BYTES: ${STT_MAX_AUDIO_BYTES:-26214400}
+    APP_PORT: ${APP_PORT:-8000}
+  volumes:
+    - ${MODEL_CACHE_DIR:-./models}:/models
+  ports:
+    - "${APP_PORT:-8000}:8000"
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz || exit 1"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 120s
+
+services:
+  voice-cuda:
+    <<: *voice-common
+    profiles: [cuda]
+    image: ${APP_IMAGE:-ghcr.io/symphonic-navigator/chatsune-voice:cuda-latest}
+    runtime: nvidia
+    environment:
+      <<: *voice-env
+      NVIDIA_VISIBLE_DEVICES: all
+
+  voice-rocm:
+    <<: *voice-common
+    profiles: [rocm]
+    image: ${APP_IMAGE:-ghcr.io/symphonic-navigator/chatsune-voice:rocm-latest}
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    environment:
+      <<: *voice-env
+      HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-11.5.1}
