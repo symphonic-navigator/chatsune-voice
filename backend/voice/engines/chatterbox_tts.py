@@ -216,10 +216,10 @@ def load_chatterbox_onnx(model_id: str, *, device: str) -> _ChatterboxBackend:
     device: 'cuda' (-> CUDAExecutionProvider on NVIDIA, ROCMExecutionProvider
     on AMD via the onnxruntime-rocm wheel), 'cpu' (-> CPUExecutionProvider).
     """
-    import io
+    import io  # still needed — librosa.load accepts a BytesIO
 
+    import librosa
     import onnxruntime
-    import soundfile as sf
     from huggingface_hub import hf_hub_download
 
     available = onnxruntime.get_available_providers()
@@ -283,27 +283,104 @@ def load_chatterbox_onnx(model_id: str, *, device: str) -> _ChatterboxBackend:
             language: str,
             reference_audio: bytes,
             exaggeration: float,
-            cfg_weight: float,
+            cfg_weight: float,  # documented no-op in the ONNX backend
             temperature: float,
         ) -> tuple[np.ndarray, int]:
-            ref_waveform, ref_sr = sf.read(io.BytesIO(reference_audio), dtype="float32")
-            if ref_waveform.ndim > 1:
-                ref_waveform = ref_waveform.mean(axis=1)
+            # cfg_weight is validated by the API layer and accepted here for
+            # protocol compatibility, but the ONNX backend does not apply
+            # classifier-free guidance — the upstream reference provides no
+            # validated recipe. Follow-up tracked in the sub-spec.
+            del cfg_weight
 
-            # TODO(task-6-part-2): adapt the autoregressive inference loop
-            # from backend/voice/engines/_chatterbox_onnx_reference.py:
-            #   1. Encode reference waveform -> conditioning vector (speech_encoder)
-            #   2. Tokenise text with language_id handling
-            #   3. Embed tokens (embed_tokens)
-            #   4. Autoregressive decode with KV cache (language_model), applying
-            #      temperature and cfg_weight; exaggeration controls emotion
-            #      conditioning
-            #   5. Decode speech tokens to waveform (conditional_decoder)
-            # Return a 1-D float32 waveform at 24 kHz.
-            raise NotImplementedError(
-                "Populate the ONNX inference loop from the reference file at "
-                "backend/voice/engines/_chatterbox_onnx_reference.py"
+            # 1. Decode + resample reference audio to 24 kHz mono float32.
+            waveform, _ = librosa.load(
+                io.BytesIO(reference_audio), sr=S3GEN_SR, mono=True
             )
+            audio_values = waveform[np.newaxis, :].astype(np.float32)
+
+            # 2. Text preparation: per-language normalisation + language token.
+            prepared_text = prepare_language(text, language)
+            input_ids = self._tokenizer(
+                prepared_text, return_tensors="np"
+            )["input_ids"].astype(np.int64)
+            position_ids = np.where(
+                input_ids >= START_SPEECH_TOKEN,
+                0,
+                np.arange(input_ids.shape[1])[np.newaxis, :] - 1,
+            ).astype(np.int64)
+
+            # 3. Encode reference voice (once) and compute initial embeddings.
+            cond_emb, prompt_token, ref_x_vector, prompt_feat = (
+                self._speech_encoder.run(None, {"audio_values": audio_values})
+            )
+            embed_inputs = {
+                "input_ids": input_ids,
+                "position_ids": position_ids,
+                "exaggeration": np.array([exaggeration], dtype=np.float32),
+            }
+            inputs_embeds = self._embed_tokens.run(None, embed_inputs)[0]
+            inputs_embeds = np.concatenate([cond_emb, inputs_embeds], axis=1)
+
+            # 4. Initialise KV-cache and attention mask.
+            batch_size, seq_len, _ = inputs_embeds.shape
+            past_key_values = {
+                f"past_key_values.{layer}.{kv}": np.zeros(
+                    [batch_size, NUM_KV_HEADS, 0, HEAD_DIM], dtype=np.float32
+                )
+                for layer in range(NUM_HIDDEN_LAYERS)
+                for kv in ("key", "value")
+            }
+            attention_mask = np.ones((batch_size, seq_len), dtype=np.int64)
+
+            # 5. Autoregressive generation loop.
+            generate_tokens = np.array([[START_SPEECH_TOKEN]], dtype=np.int64)
+            for step in range(MAX_NEW_TOKENS):
+                logits, *present_key_values = self._language_model.run(
+                    None,
+                    {
+                        "inputs_embeds": inputs_embeds,
+                        "attention_mask": attention_mask,
+                        **past_key_values,
+                    },
+                )
+                last_logits = logits[:, -1, :]
+                penalised = repetition_penalty_processor(
+                    generate_tokens, last_logits, penalty=REPETITION_PENALTY
+                )
+                next_token = sample_next_token(penalised, temperature=temperature)
+                generate_tokens = np.concatenate(
+                    [generate_tokens, next_token], axis=-1
+                )
+                if (next_token.flatten() == STOP_SPEECH_TOKEN).all():
+                    break
+
+                # Embed the new token. exaggeration stays constant; only
+                # input_ids and position_ids advance.
+                embed_inputs["input_ids"] = next_token
+                embed_inputs["position_ids"] = np.full(
+                    (batch_size, 1), step + 1, dtype=np.int64
+                )
+                inputs_embeds = self._embed_tokens.run(None, embed_inputs)[0]
+
+                attention_mask = np.concatenate(
+                    [attention_mask, np.ones((batch_size, 1), dtype=np.int64)],
+                    axis=1,
+                )
+                for j, key in enumerate(past_key_values):
+                    past_key_values[key] = present_key_values[j]
+
+            # 6. Waveform synthesis.
+            speech_tokens = generate_tokens[:, 1:-1]
+            speech_tokens = np.concatenate([prompt_token, speech_tokens], axis=1)
+            wav = self._conditional_decoder.run(
+                None,
+                {
+                    "speech_tokens": speech_tokens,
+                    "speaker_embeddings": ref_x_vector,
+                    "speaker_features": prompt_feat,
+                },
+            )[0]
+            return np.squeeze(wav, axis=0).astype(np.float32), S3GEN_SR
 
     return _OnnxBackend()
 
