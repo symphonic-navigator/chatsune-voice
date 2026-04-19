@@ -17,6 +17,12 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
+# Swap the PyPI-baseline onnxruntime for onnxruntime-gpu (pulls CUDA EP).
+# Using uv pip avoids dependency resolution conflicts: we uninstall the CPU
+# wheel then install the GPU one into the same uv-managed virtualenv.
+RUN uv pip uninstall onnxruntime || true
+RUN uv pip install onnxruntime-gpu
+
 # Source
 COPY backend/ ./
 
