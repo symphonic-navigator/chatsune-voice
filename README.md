@@ -48,7 +48,7 @@ All configuration is via environment variables. See `.env.example` for the full 
 | --- | --- | --- |
 | `COMPOSE_PROFILES` | (must set) | `cuda` or `rocm`. Selects the corresponding service and base image. |
 | `CHATSUNE_VOICE_MODEL_CACHE_DIR` | `/models` (inside container) | Single cache directory shared by all three models; mapped to `HF_HOME` at start-up. |
-| `TTS_ENABLED_MODES` | `custom_voice,voice_design` | Which TTS modes the API exposes. A subset is allowed. |
+| `TTS_ENABLED_MODES` | `custom_voice,voice_design,clone` | Which TTS modes the API exposes. A subset is allowed. |
 | `TTS_VRAM_POLICY` | `keep_loaded` | `keep_loaded` keeps all enabled TTS models resident. `swap` keeps at most one resident at a time, serialising mode switches via an `asyncio.Lock`. |
 | `TTS_ATTENTION_IMPL` | `sdpa` | `sdpa` (PyTorch default, works everywhere), `flash_attention_2` (CUDA-only, requires `INSTALL_FLASH_ATTN=1` build arg), or `eager`. |
 | `PRELOAD_AT_STARTUP` | `true` | Load models during start-up. Set to `false` to defer loading until the first request. |
