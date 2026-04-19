@@ -28,11 +28,13 @@ class TTSModelRegistry:
         policy: VRAMPolicy,
         loader: Callable[[TTSMode], TTSModel],
         on_evict: Callable[[TTSMode], None] | None = None,
+        always_resident_modes: frozenset[str] = frozenset(),
     ) -> None:
         self._enabled: tuple[TTSMode, ...] = enabled
         self._policy: VRAMPolicy = policy
         self._loader = loader
         self._on_evict = on_evict
+        self._always_resident: frozenset[str] = always_resident_modes
         self._locks: dict[TTSMode, asyncio.Lock] = {m: asyncio.Lock() for m in enabled}
         self._swap_lock = asyncio.Lock()
         self._loaded: dict[TTSMode, TTSModel] = {}
@@ -49,21 +51,16 @@ class TTSModelRegistry:
         return tuple(self._loaded.keys())
 
     def preload(self) -> None:
-        """Load enabled models at start-up. No-op under 'swap' policy.
+        """Load enabled models at start-up.
 
-        Synchronous by design: preload runs during application bootstrap, and
-        that bootstrap path may already be inside a running asyncio loop (for
-        instance, uvicorn imports `voice.main:app` via __getattr__ while its
-        own serve() loop is active — an `asyncio.run` there would blow up
-        with "cannot be called from a running event loop"). At startup there
-        is nothing to block anyway, so a plain synchronous loader call is
-        both safer and simpler.
+        Under `keep_loaded` this loads every enabled mode.
+        Under `swap` this loads only the always-resident modes; swappable
+        modes are lazy-loaded on first request. Synchronous by design —
+        safe to call from inside a running asyncio loop.
         """
-        if self._policy == "swap":
-            log.info("tts_registry_preload_skipped", reason="swap_policy")
-            return
         for mode in self._enabled:
-            self._load_sync(mode)
+            if self._policy == "keep_loaded" or mode in self._always_resident:
+                self._load_sync(mode)
 
     def _load_sync(self, mode: TTSMode) -> None:
         try:
@@ -77,17 +74,20 @@ class TTSModelRegistry:
     async def acquire(self, mode: str) -> AsyncIterator[TTSModel]:
         if mode not in self._enabled:
             raise ModeDisabledError(mode)
-        if self._policy == "keep_loaded":
+        # Always-resident modes and every mode under keep_loaded take the
+        # per-mode lock and bypass the swap lock entirely.
+        if self._policy == "keep_loaded" or mode in self._always_resident:
             async with self._locks[mode]:  # type: ignore[index]
                 if mode not in self._loaded:
                     await self._load_locked(mode)  # type: ignore[arg-type]
                 yield self._loaded[mode]  # type: ignore[index]
-        else:
-            async with self._swap_lock:
-                if mode not in self._loaded:
-                    await self._evict_all()
-                    await self._load_locked(mode)  # type: ignore[arg-type]
-                yield self._loaded[mode]  # type: ignore[index]
+            return
+        # Swappable mode under swap policy.
+        async with self._swap_lock:
+            if mode not in self._loaded:
+                await self._evict_swappable()
+                await self._load_locked(mode)  # type: ignore[arg-type]
+            yield self._loaded[mode]  # type: ignore[index]
 
     async def aclose(self) -> None:
         for mode, model in list(self._loaded.items()):
@@ -105,13 +105,15 @@ class TTSModelRegistry:
         self._loaded[mode] = model
         log.info("tts_model_loaded", mode=mode)
 
-    async def _evict_all(self) -> None:
+    async def _evict_swappable(self) -> None:
         for mode, model in list(self._loaded.items()):
+            if mode in self._always_resident:
+                continue
             try:
                 await model.aclose()
             except Exception as exc:
                 log.warning("tts_model_close_failed", mode=mode, error=repr(exc))
+            del self._loaded[mode]
             if self._on_evict is not None:
                 self._on_evict(mode)
             log.info("tts_model_evicted", mode=mode)
-        self._loaded.clear()

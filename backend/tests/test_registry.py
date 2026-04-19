@@ -197,3 +197,98 @@ async def test_loader_failure_propagates_as_model_load_error():
     with pytest.raises(ModelLoadError):
         async with registry.acquire("custom_voice"):
             pass
+
+
+@pytest.mark.asyncio
+async def test_swap_preloads_always_resident_only():
+    """Under swap policy, preload loads always-resident modes immediately."""
+    from voice.engines.registry import TTSModelRegistry
+
+    counts: dict[str, int] = {}
+
+    def load(mode: str):
+        counts[mode] = counts.get(mode, 0) + 1
+        samples = np.zeros(1000, dtype=np.float32)
+        m = FakeTTSModel(mode=mode, samples=samples)
+        m.always_resident = (mode == "clone")
+        return m
+
+    registry = TTSModelRegistry(
+        enabled=("custom_voice", "voice_design", "clone"),
+        policy="swap",
+        loader=load,
+        always_resident_modes=frozenset({"clone"}),
+    )
+    registry.preload()
+    assert counts == {"clone": 1}
+    assert "clone" in registry.loaded_modes()
+
+
+@pytest.mark.asyncio
+async def test_swap_does_not_evict_always_resident():
+    """A Qwen3 swap-switch leaves Chatterbox loaded."""
+    from voice.engines.registry import TTSModelRegistry
+
+    counts: dict[str, int] = {}
+    evictions: list[str] = []
+
+    def load(mode: str):
+        counts[mode] = counts.get(mode, 0) + 1
+        samples = np.zeros(1000, dtype=np.float32)
+        m = FakeTTSModel(mode=mode, samples=samples)
+        m.always_resident = (mode == "clone")
+        return m
+
+    registry = TTSModelRegistry(
+        enabled=("custom_voice", "voice_design", "clone"),
+        policy="swap",
+        loader=load,
+        on_evict=lambda mode: evictions.append(mode),
+        always_resident_modes=frozenset({"clone"}),
+    )
+    registry.preload()  # loads clone
+    async with registry.acquire("custom_voice"):
+        pass
+    async with registry.acquire("voice_design"):
+        pass
+    async with registry.acquire("clone"):
+        pass
+
+    assert counts == {"clone": 1, "custom_voice": 1, "voice_design": 1}
+    assert "clone" not in evictions
+    assert evictions == ["custom_voice"]
+
+
+@pytest.mark.asyncio
+async def test_keep_loaded_unchanged_with_always_resident():
+    """keep_loaded still loads everything and evicts nothing."""
+    from voice.engines.registry import TTSModelRegistry
+
+    counts: dict[str, int] = {}
+    evictions: list[str] = []
+
+    def load(mode: str):
+        counts[mode] = counts.get(mode, 0) + 1
+        samples = np.zeros(1000, dtype=np.float32)
+        m = FakeTTSModel(mode=mode, samples=samples)
+        m.always_resident = (mode == "clone")
+        return m
+
+    registry = TTSModelRegistry(
+        enabled=("custom_voice", "voice_design", "clone"),
+        policy="keep_loaded",
+        loader=load,
+        on_evict=lambda mode: evictions.append(mode),
+        always_resident_modes=frozenset({"clone"}),
+    )
+    registry.preload()
+
+    async with registry.acquire("custom_voice"):
+        pass
+    async with registry.acquire("voice_design"):
+        pass
+    async with registry.acquire("clone"):
+        pass
+
+    assert counts == {"custom_voice": 1, "voice_design": 1, "clone": 1}
+    assert evictions == []
