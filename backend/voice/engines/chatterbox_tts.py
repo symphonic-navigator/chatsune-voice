@@ -121,8 +121,102 @@ def load_chatterbox_torch(model_id: str, *, device: str) -> _ChatterboxBackend:
 
 
 def load_chatterbox_onnx(model_id: str, *, device: str) -> _ChatterboxBackend:
-    """Factory for the ONNX Runtime-based Chatterbox backend. Implemented in Task 6."""
-    raise NotImplementedError("ONNX backend loader — populated in Task 6")
+    """Load Chatterbox Multilingual via ONNX Runtime.
+
+    Downloads four ONNX model files from the hub (speech_encoder, embed_tokens,
+    language_model, conditional_decoder), creates InferenceSession objects
+    with the appropriate ExecutionProvider, and implements the autoregressive
+    inference loop from the upstream reference example.
+
+    device: 'cuda' (-> CUDAExecutionProvider on NVIDIA, ROCMExecutionProvider
+    on AMD via the onnxruntime-rocm wheel), 'cpu' (-> CPUExecutionProvider).
+    """
+    import io
+
+    import onnxruntime
+    import soundfile as sf
+    from huggingface_hub import hf_hub_download
+
+    available = onnxruntime.get_available_providers()
+    if device == "cuda":
+        if "CUDAExecutionProvider" in available:
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        elif "ROCMExecutionProvider" in available:
+            providers = ["ROCMExecutionProvider", "CPUExecutionProvider"]
+        else:
+            providers = ["CPUExecutionProvider"]
+            log.warning(
+                "chatterbox_onnx_no_gpu_provider",
+                requested=device,
+                available=available,
+            )
+    else:
+        providers = ["CPUExecutionProvider"]
+
+    def _dl(filename: str) -> str:
+        return hf_hub_download(repo_id=model_id, filename=filename)
+
+    speech_encoder_path = _dl("speech_encoder.onnx")
+    embed_tokens_path = _dl("embed_tokens.onnx")
+    language_model_path = _dl("language_model.onnx")
+    conditional_decoder_path = _dl("conditional_decoder.onnx")
+
+    from transformers import AutoTokenizer  # type: ignore[import-untyped]
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+    speech_encoder = onnxruntime.InferenceSession(speech_encoder_path, providers=providers)
+    embed_tokens = onnxruntime.InferenceSession(embed_tokens_path, providers=providers)
+    language_model = onnxruntime.InferenceSession(language_model_path, providers=providers)
+    conditional_decoder = onnxruntime.InferenceSession(
+        conditional_decoder_path, providers=providers
+    )
+
+    log.info(
+        "chatterbox_onnx_loaded",
+        providers=providers,
+        model=model_id,
+    )
+
+    class _OnnxBackend:
+        sample_rate: int = 24000
+
+        def __init__(self) -> None:
+            self._tokenizer = tokenizer
+            self._speech_encoder = speech_encoder
+            self._embed_tokens = embed_tokens
+            self._language_model = language_model
+            self._conditional_decoder = conditional_decoder
+
+        def generate(
+            self,
+            *,
+            text: str,
+            language: str,
+            reference_audio: bytes,
+            exaggeration: float,
+            cfg_weight: float,
+            temperature: float,
+        ) -> tuple[np.ndarray, int]:
+            ref_waveform, ref_sr = sf.read(io.BytesIO(reference_audio), dtype="float32")
+            if ref_waveform.ndim > 1:
+                ref_waveform = ref_waveform.mean(axis=1)
+
+            # TODO(task-6-part-2): adapt the autoregressive inference loop
+            # from backend/voice/engines/_chatterbox_onnx_reference.py:
+            #   1. Encode reference waveform -> conditioning vector (speech_encoder)
+            #   2. Tokenise text with language_id handling
+            #   3. Embed tokens (embed_tokens)
+            #   4. Autoregressive decode with KV cache (language_model), applying
+            #      temperature and cfg_weight; exaggeration controls emotion
+            #      conditioning
+            #   5. Decode speech tokens to waveform (conditional_decoder)
+            # Return a 1-D float32 waveform at 24 kHz.
+            raise NotImplementedError(
+                "Populate the ONNX inference loop from the reference file at "
+                "backend/voice/engines/_chatterbox_onnx_reference.py"
+            )
+
+    return _OnnxBackend()
 
 
 class ChatterboxCloneModel:

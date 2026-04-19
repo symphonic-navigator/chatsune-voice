@@ -164,3 +164,13 @@ def test_torch_loader_raises_on_missing_chatterbox_package(monkeypatch):
     monkeypatch.setitem(sys.modules, "chatterbox.mtl_tts", None)
     with pytest.raises((ImportError, AttributeError, TypeError)):
         load_chatterbox_torch("ResembleAI/chatterbox", device="cpu")
+
+
+def test_onnx_loader_raises_on_missing_onnxruntime(monkeypatch):
+    import sys
+
+    from voice.engines.chatterbox_tts import load_chatterbox_onnx
+
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    with pytest.raises((ImportError, AttributeError, TypeError)):
+        load_chatterbox_onnx("onnx-community/chatterbox-multilingual-ONNX", device="cpu")
