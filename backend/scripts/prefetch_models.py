@@ -31,7 +31,12 @@ def main() -> int:
 
     apply_hf_home(settings.model_cache_dir)
 
-    ids = [settings.stt_model, settings.tts_custom_voice_model, settings.tts_voice_design_model]
+    ids = [
+        settings.stt_model,
+        settings.tts_custom_voice_model,
+        settings.tts_voice_design_model,
+        settings.chatterbox_model,
+    ]
     log.info("prefetch_starting", cache_dir=str(settings.model_cache_dir), models=ids)
 
     for hf_id in ids:
