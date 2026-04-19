@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # so it can split on commas rather than choke on invalid JSON.
     tts_enabled_modes: Annotated[
         tuple[TTSMode, ...], NoDecode
-    ] = ("custom_voice", "voice_design")
+    ] = ("custom_voice", "voice_design", "clone")
     tts_vram_policy: VRAMPolicy = "keep_loaded"
     tts_attention_impl: AttentionImpl = "sdpa"
     preload_at_startup: bool = True

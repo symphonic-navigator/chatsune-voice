@@ -32,10 +32,16 @@ def build_registry(settings: Settings, *, tts_loader: Callable[[str], object]):
         enabled=settings.tts_enabled_modes,
         policy=settings.tts_vram_policy,
         loader=tts_loader,  # type: ignore[arg-type]
+        always_resident_modes=frozenset({"clone"}),
     )
 
 
 def _default_tts_loader(settings: Settings) -> Callable[[str], object]:
+    from voice.engines.chatterbox_tts import (
+        ChatterboxCloneModel,
+        load_chatterbox_onnx,
+        load_chatterbox_torch,
+    )
     from voice.engines.qwen_tts import (
         QwenCustomVoiceModel,
         QwenVoiceDesignModel,
@@ -57,6 +63,18 @@ def _default_tts_loader(settings: Settings) -> Callable[[str], object]:
                 attention_impl=settings.tts_attention_impl,
             )
             return QwenVoiceDesignModel(backend=backend)
+        if mode == "clone":
+            if settings.chatterbox_backend == "onnx":
+                backend = load_chatterbox_onnx(
+                    settings.chatterbox_model,
+                    device=settings.chatterbox_device,
+                )
+            else:
+                backend = load_chatterbox_torch(
+                    settings.chatterbox_model,
+                    device=settings.chatterbox_device,
+                )
+            return ChatterboxCloneModel(backend=backend)
         raise ValueError(f"unknown TTS mode: {mode!r}")
 
     return load

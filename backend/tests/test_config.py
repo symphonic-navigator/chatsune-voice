@@ -15,7 +15,7 @@ def test_defaults(monkeypatch):
     assert s.stt_compute_type == "auto"
     assert s.tts_custom_voice_model == "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     assert s.tts_voice_design_model == "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
-    assert s.tts_enabled_modes == ("custom_voice", "voice_design")
+    assert s.tts_enabled_modes == ("custom_voice", "voice_design", "clone")
     assert s.tts_vram_policy == "keep_loaded"
     assert s.tts_attention_impl == "sdpa"
     assert s.preload_at_startup is True

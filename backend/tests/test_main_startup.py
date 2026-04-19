@@ -84,3 +84,25 @@ async def test_preload_failure_raises_model_load_error():
     registry = build_registry(s, tts_loader=loader)
     with pytest.raises(ModelLoadError):
         registry.preload()
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_with_all_three_modes_builds_registry():
+    """Registry is built with clone mode and Chatterbox loader is registered."""
+    from voice.config import Settings
+    from voice.main import build_registry
+
+    settings = Settings(_env_file=None, tts_enabled_modes="custom_voice,voice_design,clone")
+    assert "clone" in settings.tts_enabled_modes
+
+    calls: list[str] = []
+
+    def fake_loader(mode: str):
+        calls.append(mode)
+        from tests.conftest import FakeTTSModel
+        m = FakeTTSModel(mode=mode)
+        m.always_resident = (mode == "clone")
+        return m
+
+    registry = build_registry(settings, tts_loader=fake_loader)
+    assert registry.enabled_modes == ("custom_voice", "voice_design", "clone")
