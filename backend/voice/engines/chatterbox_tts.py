@@ -79,6 +79,24 @@ def prepare_language(text: str, language_id: str) -> str:
     return f"[{language_id}]{text}"
 
 
+def repetition_penalty_processor(
+    input_ids: np.ndarray, scores: np.ndarray, *, penalty: float
+) -> np.ndarray:
+    """Apply repetition penalty to `scores` at indices listed in `input_ids`.
+
+    Mirrors the upstream reference's RepetitionPenaltyLogitsProcessor:
+    positive scores at visited ids are divided by `penalty`, negative
+    scores are multiplied. Non-visited indices are left untouched.
+    """
+    if input_ids.shape[1] == 0:
+        return scores
+    score = np.take_along_axis(scores, input_ids, axis=1)
+    score = np.where(score < 0, score * penalty, score / penalty)
+    scores_processed = scores.copy()
+    np.put_along_axis(scores_processed, input_ids, score, axis=1)
+    return scores_processed
+
+
 class _ChatterboxBackend(Protocol):
     sample_rate: int
 

@@ -215,3 +215,31 @@ def test_prepare_language_korean_syllable_without_final():
     # base=0, initial=0x1100, medial=0x1161, no final
     expected = "[ko]" + chr(0x1100) + chr(0x1161)
     assert result == expected
+
+
+def test_repetition_penalty_processor_scales_positive_and_negative_correctly():
+    """Positive scores at visited ids are divided by penalty; negative ones are multiplied."""
+    from voice.engines.chatterbox_tts import repetition_penalty_processor
+
+    # vocab_size=4, already-generated token ids are [1, 2]
+    input_ids = np.array([[1, 2]], dtype=np.int64)
+    scores = np.array([[1.0, 2.0, -3.0, 4.0]], dtype=np.float32)
+
+    result = repetition_penalty_processor(input_ids, scores, penalty=2.0)
+
+    # Index 0: not in input_ids, unchanged -> 1.0
+    # Index 1: positive, in input_ids -> 2.0 / 2.0 = 1.0
+    # Index 2: negative, in input_ids -> -3.0 * 2.0 = -6.0
+    # Index 3: not in input_ids, unchanged -> 4.0
+    np.testing.assert_allclose(result, np.array([[1.0, 1.0, -6.0, 4.0]], dtype=np.float32))
+
+
+def test_repetition_penalty_processor_leaves_scores_unchanged_when_no_history():
+    from voice.engines.chatterbox_tts import repetition_penalty_processor
+
+    input_ids = np.zeros((1, 0), dtype=np.int64)
+    scores = np.array([[1.0, -2.0, 3.0]], dtype=np.float32)
+
+    result = repetition_penalty_processor(input_ids, scores, penalty=1.2)
+
+    np.testing.assert_allclose(result, scores)
