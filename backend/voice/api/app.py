@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from voice.api import health as health_module
 from voice.api import stt as stt_module
 from voice.api import tts as tts_module
+from voice.api import tts_clone as tts_clone_module
 from voice.logging_setup import get_logger
 
 log = get_logger(__name__)
@@ -35,6 +36,7 @@ def build_app(*, stt: Any, registry: Any, settings: Any) -> FastAPI:
     app.include_router(health_module.router)
     app.include_router(stt_module.router)
     app.include_router(tts_module.router)
+    app.include_router(tts_clone_module.router)
 
     @app.middleware("http")
     async def _request_id(request: Request, call_next):
