@@ -20,6 +20,16 @@ log = get_logger(__name__)
 
 DEFAULT_CHUNK_SIZE = 4096
 
+# Chatterbox ONNX inference constants (extracted from the upstream reference).
+S3GEN_SR = 24000
+START_SPEECH_TOKEN = 6561
+STOP_SPEECH_TOKEN = 6562
+NUM_HIDDEN_LAYERS = 30
+NUM_KV_HEADS = 16
+HEAD_DIM = 64
+REPETITION_PENALTY = 1.2
+MAX_NEW_TOKENS = 1024
+
 # Chatterbox uses ISO-639-1 codes. Our Language literal uses full English names.
 # "Auto" is deliberately not mapped — Chatterbox needs a concrete language.
 _LANGUAGE_MAP: dict[str, str] = {
@@ -229,12 +239,16 @@ def load_chatterbox_onnx(model_id: str, *, device: str) -> _ChatterboxBackend:
         providers = ["CPUExecutionProvider"]
 
     def _dl(filename: str) -> str:
-        return hf_hub_download(repo_id=model_id, filename=filename)
+        return hf_hub_download(repo_id=model_id, filename=filename, subfolder="onnx")
 
     speech_encoder_path = _dl("speech_encoder.onnx")
+    _dl("speech_encoder.onnx_data")
     embed_tokens_path = _dl("embed_tokens.onnx")
+    _dl("embed_tokens.onnx_data")
     language_model_path = _dl("language_model.onnx")
+    _dl("language_model.onnx_data")
     conditional_decoder_path = _dl("conditional_decoder.onnx")
+    _dl("conditional_decoder.onnx_data")
 
     from transformers import AutoTokenizer  # type: ignore[import-untyped]
     tokenizer = AutoTokenizer.from_pretrained(model_id)

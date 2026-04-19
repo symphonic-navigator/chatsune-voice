@@ -281,3 +281,42 @@ def test_sample_next_token_returns_int64_shape_1_1():
 
     assert result.shape == (1, 1)
     assert result.dtype == np.int64
+
+
+def test_onnx_loader_downloads_from_onnx_subfolder(monkeypatch):
+    """Each .onnx file is downloaded with subfolder='onnx' and the paired
+    .onnx_data sidecar is fetched alongside."""
+    from voice.engines import chatterbox_tts
+
+    calls: list[dict] = []
+
+    def fake_download(repo_id, filename, *, subfolder=None):
+        calls.append({"filename": filename, "subfolder": subfolder})
+        return f"/fake/{subfolder}/{filename}"
+
+    class FakeSession:
+        def __init__(self, path, providers=None):
+            self.path = path
+            self.providers = providers
+
+    class FakeAutoTokenizer:
+        @classmethod
+        def from_pretrained(cls, model_id):
+            return object()
+
+    monkeypatch.setattr("huggingface_hub.hf_hub_download", fake_download)
+    monkeypatch.setattr("onnxruntime.InferenceSession", FakeSession)
+    monkeypatch.setattr(
+        "onnxruntime.get_available_providers", lambda: ["CPUExecutionProvider"]
+    )
+    monkeypatch.setattr("transformers.AutoTokenizer", FakeAutoTokenizer)
+
+    chatterbox_tts.load_chatterbox_onnx("fake/repo", device="cpu")
+
+    filenames = [c["filename"] for c in calls]
+    subfolders = {c["subfolder"] for c in calls}
+
+    for base in ("speech_encoder", "embed_tokens", "language_model", "conditional_decoder"):
+        assert f"{base}.onnx" in filenames
+        assert f"{base}.onnx_data" in filenames
+    assert subfolders == {"onnx"}
