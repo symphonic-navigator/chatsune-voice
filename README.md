@@ -100,14 +100,18 @@ curl -X POST http://localhost:8000/v1/speak/clone \
 
 The response is a streaming PCM16 WAV at the Chatterbox sample rate (24 kHz).
 Reference clips should be 3–15 seconds of clean speech; longer is capped by
-`CHATTERBOX_MAX_REFERENCE_SECONDS`. `language=Auto` is not supported — pick a
-concrete language from the multilingual set (EN, DE, FR, ES, IT, PT, JA, KO,
-ZH, RU, and 13 more).
+`CHATTERBOX_MAX_REFERENCE_SECONDS`. `language=Auto` is not supported — pick
+a concrete language from the API set (EN, DE, FR, ES, IT, PT, JA, KO, ZH,
+RU). The upstream Chatterbox checkpoint supports thirteen further
+languages (Arabic, Danish, Greek, Finnish, Hebrew, Hindi, Malay, Dutch,
+Norwegian, Polish, Swedish, Swahili, Turkish); exposing them requires
+widening the shared `Language` literal in `backend/voice/api/models.py`
+and is out of Phase 1 scope.
 
 ### Backends
 
-- **ONNX (default).** The `onnx-community/chatterbox-multilingual-ONNX` checkpoint is loaded via ONNX Runtime and picks `CUDAExecutionProvider` / `ROCMExecutionProvider` / `CPUExecutionProvider` at runtime. Phase 1 ships the loader and model-session setup; the autoregressive inference loop itself is being adapted from the upstream repo's reference code — until that is in place, a `/v1/speak/clone` request returns an error from the loader path. See the deferred Task 6 Part 2 in `docs/superpowers/plans/2026-04-19-chatterbox-integration.md`.
-- **Torch (optional, bring-your-own).** Set `CHATTERBOX_BACKEND=torch`. The loader imports `chatterbox.mtl_tts.ChatterboxMultilingualTTS`. The `chatterbox-tts` PyPI package is **not** a declared dependency of this project because it conflicts with the `transformers` version pinned by our `qwen-tts` dependency. To use the Torch backend, install `chatterbox-tts` yourself in a separate virtualenv (outside the docker image, or in a custom image layer) that does not have `qwen-tts` in it. When the Torch backend is selected and the package is missing, `/v1/speak/clone` fails at load time with a clear ImportError.
+- **ONNX (default).** The `onnx-community/chatterbox-multilingual-ONNX` checkpoint is loaded via ONNX Runtime and picks `CUDAExecutionProvider` / `ROCMExecutionProvider` / `CPUExecutionProvider` at runtime. Phase 1 ships the loader and model-session setup; the autoregressive inference loop itself is being adapted from the upstream repo's reference code in a follow-up session (Task 6 Part 2 in `docs/superpowers/plans/2026-04-19-chatterbox-integration.md`). **Until that adaptation lands, a `/v1/speak/clone` request against the ONNX backend returns HTTP 200 with a valid but empty WAV stream** — the header is emitted, then the inference call raises `NotImplementedError`, and the streaming body handler logs `clone_error` and closes the stream without producing any PCM samples. The server log line `clone_error phase=before_stream error_type=NotImplementedError` is the signal that this path is still to be completed. Operators who need working audio in the meantime should fall back to the Torch backend below.
+- **Torch (optional, bring-your-own).** Set `CHATTERBOX_BACKEND=torch`. The loader imports `chatterbox.mtl_tts.ChatterboxMultilingualTTS`. The `chatterbox-tts` PyPI package is **not** a declared dependency of this project because it conflicts with the `transformers` version pinned by our `qwen-tts` dependency. To use the Torch backend, install `chatterbox-tts` yourself in a separate virtualenv (outside the docker image, or in a custom image layer) that does not have `qwen-tts` in it. When the Torch backend is selected and the package is missing, `/v1/speak/clone` fails at load time with a clear ImportError. The Torch loader uses the upstream-default Chatterbox repo (`ResembleAI/chatterbox`), not the ONNX-community repo set in `CHATTERBOX_MODEL`; that env var only governs the ONNX backend today.
 
 ## Development
 
