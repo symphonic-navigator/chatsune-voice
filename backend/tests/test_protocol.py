@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from voice.engines.protocol import TTSRequest
 
 
@@ -33,7 +31,9 @@ def test_ttsrequest_defaults_new_fields_to_none_for_existing_callers():
 
 def test_ttsmode_literal_includes_clone():
     import typing
+
     from voice.engines.protocol import TTSMode
+
     assert "clone" in typing.get_args(TTSMode)
     assert "custom_voice" in typing.get_args(TTSMode)
     assert "voice_design" in typing.get_args(TTSMode)

@@ -62,7 +62,7 @@ class TTSRequest:
 class TTSModel(Protocol):
     mode: TTSMode
     sample_rate: int
-    always_resident: bool  # Default False via the implementations below.
+    always_resident: bool  # Set by implementations; default False for non-resident engines.
 
     def stream(self, req: TTSRequest) -> AsyncIterator[np.ndarray]: ...
 
