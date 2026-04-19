@@ -182,3 +182,36 @@ def test_onnx_loader_raises_on_missing_onnxruntime(monkeypatch):
     monkeypatch.setitem(sys.modules, "onnxruntime", None)
     with pytest.raises((ImportError, AttributeError, TypeError)):
         load_chatterbox_onnx("onnx-community/chatterbox-multilingual-ONNX", device="cpu")
+
+
+def test_prepare_language_prepends_language_token():
+    from voice.engines.chatterbox_tts import prepare_language
+
+    assert prepare_language("Hallo", "de") == "[de]Hallo"
+    assert prepare_language("Bonjour", "fr") == "[fr]Bonjour"
+
+
+def test_prepare_language_korean_jamo_decomposition():
+    """Hangul syllable '안' (0xC548) should decompose to ᄋ (0x110B) + ᅡ (0x1161) + ᆫ (0x11AB)."""
+    from voice.engines.chatterbox_tts import prepare_language
+
+    result = prepare_language("안", "ko")
+    expected = "[ko]" + chr(0x110B) + chr(0x1161) + chr(0x11AB)
+    assert result == expected
+
+
+def test_prepare_language_korean_passthrough_for_non_hangul():
+    """Non-Hangul characters within a ko text are preserved untouched after the prefix."""
+    from voice.engines.chatterbox_tts import prepare_language
+
+    assert prepare_language("Hello!", "ko") == "[ko]Hello!"
+
+
+def test_prepare_language_korean_syllable_without_final():
+    """Hangul syllable '가' (0xAC00, base case) has no final Jamo."""
+    from voice.engines.chatterbox_tts import prepare_language
+
+    result = prepare_language("가", "ko")
+    # base=0, initial=0x1100, medial=0x1161, no final
+    expected = "[ko]" + chr(0x1100) + chr(0x1161)
+    assert result == expected

@@ -49,6 +49,36 @@ def language_to_iso639(language: str) -> str:
         raise ValueError(f"unknown language for Chatterbox: {language!r}") from exc
 
 
+def _decompose_hangul(char: str) -> str:
+    """Decompose a Hangul syllable into Initial/Medial/Final Jamo.
+
+    Non-Hangul characters pass through unchanged. Syllables without a final
+    component (base % 28 == 0) return initial + medial only.
+    """
+    code = ord(char)
+    if not (0xAC00 <= code <= 0xD7AF):
+        return char
+    base = code - 0xAC00
+    initial = chr(0x1100 + base // (21 * 28))
+    medial = chr(0x1161 + (base % (21 * 28)) // 28)
+    if base % 28 == 0:
+        return initial + medial
+    final = chr(0x11A7 + base % 28)
+    return initial + medial + final
+
+
+def prepare_language(text: str, language_id: str) -> str:
+    """Apply per-language preprocessing and prepend the language token.
+
+    For Korean, Hangul syllables are decomposed into Jamo components using
+    the pure-Python formula from the upstream reference. All other
+    supported languages (en, de, fr, es, it, pt, ru) pass through unchanged.
+    """
+    if language_id == "ko":
+        text = "".join(_decompose_hangul(c) for c in text)
+    return f"[{language_id}]{text}"
+
+
 class _ChatterboxBackend(Protocol):
     sample_rate: int
 
