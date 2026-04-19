@@ -135,10 +135,8 @@ def test_language_mapping_covers_all_common_languages():
     assert language_to_iso639("Spanish") == "es"
     assert language_to_iso639("Italian") == "it"
     assert language_to_iso639("Portuguese") == "pt"
-    assert language_to_iso639("Japanese") == "ja"
-    assert language_to_iso639("Korean") == "ko"
-    assert language_to_iso639("Chinese") == "zh"
     assert language_to_iso639("Russian") == "ru"
+    assert language_to_iso639("Korean") == "ko"
 
 
 def test_language_mapping_rejects_auto():
@@ -153,6 +151,16 @@ def test_language_mapping_rejects_unknown():
 
     with pytest.raises(ValueError, match="unknown"):
         language_to_iso639("Klingon")
+
+
+def test_language_mapping_rejects_japanese_and_chinese():
+    """Phase 1 drops ja/zh because pkuseg/pykakasi are not installed."""
+    from voice.engines.chatterbox_tts import language_to_iso639
+
+    with pytest.raises(ValueError, match="Japanese"):
+        language_to_iso639("Japanese")
+    with pytest.raises(ValueError, match="Chinese"):
+        language_to_iso639("Chinese")
 
 
 def test_torch_loader_raises_on_missing_chatterbox_package(monkeypatch):

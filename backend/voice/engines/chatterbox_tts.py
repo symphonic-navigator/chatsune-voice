@@ -29,10 +29,8 @@ _LANGUAGE_MAP: dict[str, str] = {
     "Spanish": "es",
     "Italian": "it",
     "Portuguese": "pt",
-    "Japanese": "ja",
-    "Korean": "ko",
-    "Chinese": "zh",
     "Russian": "ru",
+    "Korean": "ko",
 }
 
 
