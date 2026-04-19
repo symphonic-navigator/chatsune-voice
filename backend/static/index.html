@@ -37,6 +37,7 @@
     <div class="mode-tabs">
       <label><input type="radio" name="tts-mode" value="custom_voice" checked> CustomVoice</label>
       <label><input type="radio" name="tts-mode" value="voice_design"> VoiceDesign</label>
+      <label><input type="radio" name="tts-mode" value="clone"> Chatterbox (Voice Clone)</label>
     </div>
 
     <div id="tts-custom-voice" class="tts-panel">
@@ -69,6 +70,27 @@
         placeholder="e.g. warme tiefe Männerstimme mit leichter Rauhigkeit"></textarea></label>
       <label>Instruct (optional): <input type="text" id="vd-instruct"></label>
       <button id="vd-speak">Speak</button>
+    </div>
+
+    <div id="tts-clone" class="tts-panel hidden">
+      <label>Text: <textarea id="cl-text" rows="3"></textarea></label>
+      <label>Language: <select id="cl-language">
+        <option>German</option><option>English</option><option>French</option>
+        <option>Italian</option><option>Spanish</option><option>Portuguese</option>
+        <option>Russian</option><option>Chinese</option><option>Japanese</option>
+        <option>Korean</option>
+      </select></label>
+      <label>Reference audio (WAV/FLAC):
+        <input type="file" id="cl-reference" accept="audio/*">
+      </label>
+      <audio id="cl-reference-preview" controls class="hidden"></audio>
+      <label>Exaggeration: <input type="range" id="cl-exaggeration" min="0.25" max="2.0" step="0.05" value="0.5">
+        <span id="cl-exaggeration-val">0.50</span></label>
+      <label>CFG weight: <input type="range" id="cl-cfg-weight" min="0.0" max="1.0" step="0.05" value="0.5">
+        <span id="cl-cfg-weight-val">0.50</span></label>
+      <label>Temperature: <input type="range" id="cl-temperature" min="0.05" max="2.0" step="0.05" value="0.8">
+        <span id="cl-temperature-val">0.80</span></label>
+      <button id="cl-speak">Speak</button>
     </div>
 
     <audio id="tts-audio" controls></audio>

@@ -61,9 +61,11 @@ async function transcribeBlob(blob) {
 document.querySelectorAll('input[name="tts-mode"]').forEach(el => {
   el.addEventListener("change", () => {
     document.getElementById("tts-custom-voice").classList.toggle("hidden",
-      el.value !== "custom_voice" || !el.checked);
+      !(el.value === "custom_voice" && el.checked));
     document.getElementById("tts-voice-design").classList.toggle("hidden",
-      el.value !== "voice_design" || !el.checked);
+      !(el.value === "voice_design" && el.checked));
+    document.getElementById("tts-clone").classList.toggle("hidden",
+      !(el.value === "clone" && el.checked));
   });
 });
 
@@ -85,6 +87,62 @@ document.getElementById("vd-speak").addEventListener("click", async () => {
     voice_prompt: document.getElementById("vd-voice-prompt").value,
     instruct: document.getElementById("vd-instruct").value || null,
   });
+});
+
+// Live slider readouts
+["cl-exaggeration", "cl-cfg-weight", "cl-temperature"].forEach(id => {
+  const slider = document.getElementById(id);
+  const out = document.getElementById(id + "-val");
+  slider.addEventListener("input", () => {
+    out.textContent = parseFloat(slider.value).toFixed(2);
+  });
+});
+
+// Reference-audio preview
+document.getElementById("cl-reference").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  const preview = document.getElementById("cl-reference-preview");
+  if (!file) {
+    preview.classList.add("hidden");
+    return;
+  }
+  const prev = preview.src;
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove("hidden");
+  if (prev) URL.revokeObjectURL(prev);
+});
+
+document.getElementById("cl-speak").addEventListener("click", async () => {
+  const file = document.getElementById("cl-reference").files[0];
+  if (!file) {
+    ttsStatus.textContent = "error: reference audio required";
+    return;
+  }
+  const fd = new FormData();
+  fd.append("text", document.getElementById("cl-text").value);
+  fd.append("language", document.getElementById("cl-language").value);
+  fd.append("reference_audio", file, file.name);
+  fd.append("exaggeration", document.getElementById("cl-exaggeration").value);
+  fd.append("cfg_weight", document.getElementById("cl-cfg-weight").value);
+  fd.append("temperature", document.getElementById("cl-temperature").value);
+
+  ttsStatus.textContent = "synthesising…";
+  ttsDownload.classList.add("hidden");
+  const r = await fetch("/v1/speak/clone", { method: "POST", body: fd });
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    ttsStatus.textContent = "error: " + r.status + " " + text;
+    return;
+  }
+  const blob = await r.blob();
+  const prev = ttsAudio.src;
+  const url = URL.createObjectURL(blob);
+  ttsAudio.src = url;
+  ttsAudio.play();
+  ttsDownload.href = url;
+  ttsDownload.classList.remove("hidden");
+  if (prev) URL.revokeObjectURL(prev);
+  ttsStatus.textContent = "playing";
 });
 
 async function speak(body) {
