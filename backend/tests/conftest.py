@@ -64,6 +64,7 @@ class FakeTTSModel:
     stream_chunk_size: int = 4096
     generate_delay: float = 0.0
     raise_mid_stream_after: int | None = None
+    always_resident: bool = False
     calls: list[dict[str, Any]] = field(default_factory=list)
     closed: bool = False
 
@@ -79,6 +80,10 @@ class FakeTTSModel:
             "speaker": req.speaker,
             "voice_prompt": req.voice_prompt,
             "instruct": req.instruct,
+            "reference_audio_len": len(req.reference_audio) if req.reference_audio else 0,
+            "exaggeration": req.exaggeration,
+            "cfg_weight": req.cfg_weight,
+            "temperature": req.temperature,
         })
         if self.generate_delay:
             await asyncio.sleep(self.generate_delay)

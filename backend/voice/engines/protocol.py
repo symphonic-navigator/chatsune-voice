@@ -12,7 +12,7 @@ from typing import BinaryIO, Literal, Protocol
 
 import numpy as np
 
-TTSMode = Literal["custom_voice", "voice_design"]
+TTSMode = Literal["custom_voice", "voice_design", "clone"]
 
 
 @dataclass(frozen=True)
@@ -53,11 +53,16 @@ class TTSRequest:
     speaker: str | None = None
     voice_prompt: str | None = None
     instruct: str | None = None
+    reference_audio: bytes | None = None
+    exaggeration: float | None = None
+    cfg_weight: float | None = None
+    temperature: float | None = None
 
 
 class TTSModel(Protocol):
     mode: TTSMode
     sample_rate: int
+    always_resident: bool  # Default False via the implementations below.
 
     def stream(self, req: TTSRequest) -> AsyncIterator[np.ndarray]: ...
 

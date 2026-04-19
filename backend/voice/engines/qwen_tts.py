@@ -48,6 +48,7 @@ def load_qwen_tts(
 class _QwenBase:
     mode: TTSMode
     sample_rate: int
+    always_resident: bool = False
 
     def __init__(self, *, backend: _QwenBackend, chunk_size: int = DEFAULT_CHUNK_SIZE) -> None:
         self._backend = backend
