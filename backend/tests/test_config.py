@@ -128,3 +128,41 @@ def test_stt_compute_type_enum():
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, stt_compute_type="int4")
+
+
+def test_chatterbox_defaults():
+    from voice.config import Settings
+
+    s = Settings(_env_file=None)
+    assert s.chatterbox_model == "onnx-community/chatterbox-multilingual-ONNX"
+    assert s.chatterbox_backend == "onnx"
+    assert s.chatterbox_device == "cuda"
+    assert s.chatterbox_max_reference_bytes == 10 * 1024 * 1024
+    assert s.chatterbox_max_reference_seconds == 30.0
+
+
+def test_chatterbox_backend_enum():
+    from voice.config import Settings
+
+    for val in ("onnx", "torch"):
+        assert Settings(_env_file=None, chatterbox_backend=val).chatterbox_backend == val
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, chatterbox_backend="tflite")
+
+
+def test_enabled_modes_accepts_clone():
+    from voice.config import Settings
+
+    s = Settings(_env_file=None, tts_enabled_modes="custom_voice,voice_design,clone")
+    assert set(s.tts_enabled_modes) == {"custom_voice", "voice_design", "clone"}
+
+    s = Settings(_env_file=None, tts_enabled_modes="clone")
+    assert s.tts_enabled_modes == ("clone",)
+
+
+def test_enabled_modes_still_rejects_unknown_alongside_clone():
+    from voice.config import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, tts_enabled_modes="clone,bogus")

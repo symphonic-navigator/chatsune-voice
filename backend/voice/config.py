@@ -11,7 +11,8 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 VRAMPolicy = Literal["keep_loaded", "swap"]
 AttentionImpl = Literal["sdpa", "flash_attention_2", "eager"]
 LogLevel = Literal["debug", "info", "warn", "error"]
-TTSMode = Literal["custom_voice", "voice_design"]
+TTSMode = Literal["custom_voice", "voice_design", "clone"]
+ChatterboxBackend = Literal["onnx", "torch"]
 STTComputeType = Literal[
     "auto",
     "int8",
@@ -52,6 +53,11 @@ class Settings(BaseSettings):
     stt_max_audio_bytes: int = 25 * 1024 * 1024
     tts_custom_voice_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     tts_voice_design_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+    chatterbox_model: str = "onnx-community/chatterbox-multilingual-ONNX"
+    chatterbox_backend: ChatterboxBackend = "onnx"
+    chatterbox_device: str = "cuda"
+    chatterbox_max_reference_bytes: int = 10 * 1024 * 1024
+    chatterbox_max_reference_seconds: float = 30.0
     # NoDecode suppresses pydantic-settings' default JSON-decoding of complex
     # types when the value comes from the environment. We want the raw string
     # (e.g. "custom_voice,voice_design") to reach _parse_enabled_modes intact
@@ -94,7 +100,7 @@ class Settings(BaseSettings):
     @field_validator("tts_enabled_modes")
     @classmethod
     def _validate_mode_values(cls, value: tuple[str, ...]) -> tuple[TTSMode, ...]:
-        allowed = {"custom_voice", "voice_design"}
+        allowed = {"custom_voice", "voice_design", "clone"}
         unknown = [m for m in value if m not in allowed]
         if unknown:
             raise ValueError(f"unknown TTS mode(s): {unknown!r}; allowed: {sorted(allowed)}")
