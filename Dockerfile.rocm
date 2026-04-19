@@ -34,6 +34,21 @@ COPY backend/ ./
 # when the public version is in range). Nothing CUDA-flavoured is pulled.
 RUN pip install --no-cache-dir .
 
+# Try the AMD-distributed onnxruntime-rocm wheel. If this fails (wheel
+# unavailable for this ROCm version, or AMD's download host rejects the
+# request), the image still boots with onnxruntime-cpu — the Chatterbox
+# loader falls back to CPUExecutionProvider at runtime and logs a warning.
+# Operators who hit this should set CHATTERBOX_BACKEND=torch in .env.
+#
+# MUST be the last pip step: onnxruntime is a declared dep in pyproject.toml,
+# so it gets installed by `pip install .` above; swapping it earlier would be
+# reverted.
+ARG ONNXRUNTIME_ROCM_URL=https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/onnxruntime_rocm-1.19.0-cp312-cp312-manylinux_2_28_x86_64.whl
+RUN pip uninstall -y onnxruntime || true \
+ && (pip install --no-cache-dir "${ONNXRUNTIME_ROCM_URL}" || \
+     (echo "onnxruntime-rocm install failed — image will run ONNX on CPU" \
+      && pip install --no-cache-dir onnxruntime))
+
 EXPOSE 8000
 
 # Call uvicorn directly. No `uv run` wrapper, so there is no startup resync
