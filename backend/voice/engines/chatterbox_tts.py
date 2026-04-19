@@ -67,8 +67,57 @@ class _ChatterboxBackend(Protocol):
 
 
 def load_chatterbox_torch(model_id: str, *, device: str) -> _ChatterboxBackend:
-    """Factory for the Torch-based Chatterbox backend. Implemented in Task 5."""
-    raise NotImplementedError("Torch backend loader — populated in Task 5")
+    """Load the Chatterbox Multilingual model via the chatterbox-tts pip package.
+
+    The `chatterbox-tts` PyPI package is NOT a declared dependency of this
+    project — it conflicts with the transformers version pinned by qwen-tts.
+    Users who want the Torch fallback install it themselves (see README).
+    If it is not importable when this loader runs, a clean ImportError
+    propagates to the registry's ModelLoadError.
+
+    Returns a backend adapter that accepts reference_audio as bytes; it writes
+    the bytes to a temporary file before calling Chatterbox's file-path API.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from chatterbox.mtl_tts import ChatterboxMultilingualTTS  # type: ignore[import-not-found]
+
+    model = ChatterboxMultilingualTTS.from_pretrained(device=device)
+
+    class _TorchBackend:
+        sample_rate: int = int(getattr(model, "sr", 24000))
+
+        def generate(
+            self,
+            *,
+            text: str,
+            language: str,
+            reference_audio: bytes,
+            exaggeration: float,
+            cfg_weight: float,
+            temperature: float,
+        ) -> tuple[np.ndarray, int]:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp.write(reference_audio)
+                tmp_path = Path(tmp.name)
+            try:
+                wav = model.generate(
+                    text,
+                    language_id=language,
+                    audio_prompt_path=str(tmp_path),
+                    exaggeration=exaggeration,
+                    cfg_weight=cfg_weight,
+                    temperature=temperature,
+                )
+            finally:
+                tmp_path.unlink(missing_ok=True)
+            if hasattr(wav, "detach"):
+                wav = wav.detach().cpu().numpy()
+            wav = np.asarray(wav, dtype=np.float32).squeeze()
+            return wav, self.sample_rate
+
+    return _TorchBackend()
 
 
 def load_chatterbox_onnx(model_id: str, *, device: str) -> _ChatterboxBackend:

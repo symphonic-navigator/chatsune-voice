@@ -153,3 +153,14 @@ def test_language_mapping_rejects_unknown():
 
     with pytest.raises(ValueError, match="unknown"):
         language_to_iso639("Klingon")
+
+
+def test_torch_loader_raises_on_missing_chatterbox_package(monkeypatch):
+    """If chatterbox is not installed, the loader surfaces a clear error."""
+    import sys
+
+    from voice.engines.chatterbox_tts import load_chatterbox_torch
+
+    monkeypatch.setitem(sys.modules, "chatterbox.mtl_tts", None)
+    with pytest.raises((ImportError, AttributeError, TypeError)):
+        load_chatterbox_torch("ResembleAI/chatterbox", device="cpu")
