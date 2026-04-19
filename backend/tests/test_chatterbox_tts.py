@@ -243,3 +243,41 @@ def test_repetition_penalty_processor_leaves_scores_unchanged_when_no_history():
     result = repetition_penalty_processor(input_ids, scores, penalty=1.2)
 
     np.testing.assert_allclose(result, scores)
+
+
+def test_sample_next_token_zero_temperature_is_greedy():
+    """temperature <= 0 falls back to deterministic argmax."""
+    from voice.engines.chatterbox_tts import sample_next_token
+
+    logits = np.array([[1.0, 5.0, 2.0, 3.0]], dtype=np.float32)
+
+    result = sample_next_token(logits, temperature=0.0)
+
+    assert result.shape == (1, 1)
+    assert result.dtype == np.int64
+    assert result[0, 0] == 1  # index of max
+
+
+def test_sample_next_token_positive_temperature_is_stochastic():
+    """With temperature=1.0 and varied seeds, at least two distinct tokens appear."""
+    from voice.engines.chatterbox_tts import sample_next_token
+
+    logits = np.array([[1.0, 1.1, 1.0, 1.05]], dtype=np.float32)
+
+    seen: set[int] = set()
+    for seed in range(30):
+        rng = np.random.default_rng(seed)
+        result = sample_next_token(logits, temperature=1.0, rng=rng)
+        seen.add(int(result[0, 0]))
+
+    assert len(seen) >= 2, f"Expected stochastic sampling, got single token {seen}"
+
+
+def test_sample_next_token_returns_int64_shape_1_1():
+    from voice.engines.chatterbox_tts import sample_next_token
+
+    logits = np.array([[0.1, 0.2, 0.3]], dtype=np.float32)
+    result = sample_next_token(logits, temperature=0.5)
+
+    assert result.shape == (1, 1)
+    assert result.dtype == np.int64

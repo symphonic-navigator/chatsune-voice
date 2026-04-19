@@ -97,6 +97,35 @@ def repetition_penalty_processor(
     return scores_processed
 
 
+def sample_next_token(
+    logits: np.ndarray,
+    *,
+    temperature: float,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    """Select the next token id from last-step logits.
+
+    `logits` has shape `[1, vocab_size]` and is already repetition-penalty
+    adjusted. For `temperature <= 0` we fall back to greedy `argmax`
+    (matching the upstream reference). For `temperature > 0` we apply
+    standard temperature sampling: scale, stable-softmax, multinomial draw.
+
+    `rng` is injected for testability; production code passes `None` so
+    each call uses the module-level default generator.
+    """
+    if temperature <= 0.0:
+        return np.argmax(logits, axis=-1, keepdims=True).astype(np.int64)
+
+    scaled = logits / temperature
+    scaled = scaled - scaled.max(axis=-1, keepdims=True)
+    probs = np.exp(scaled)
+    probs = probs / probs.sum(axis=-1, keepdims=True)
+
+    gen = rng if rng is not None else np.random.default_rng()
+    choice = gen.choice(probs.shape[-1], p=probs[0])
+    return np.array([[choice]], dtype=np.int64)
+
+
 class _ChatterboxBackend(Protocol):
     sample_rate: int
 
